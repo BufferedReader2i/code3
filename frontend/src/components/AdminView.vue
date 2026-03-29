@@ -12,7 +12,7 @@
               <rect x="3" y="16" width="7" height="5" rx="1"/>
             </svg>
           </div>
-          <h2>管理后台</h2>
+          <h2>数据后台</h2>
         </div>
         <div class="actions">
           <button type="button" class="btn-secondary" @click="$emit('refresh')">
