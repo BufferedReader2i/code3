@@ -72,6 +72,20 @@
         </p> -->
 
         <!-- 用户画像饼图 -->
+        <!-- 画像更新提示 -->
+        <div v-if="profileUpdateNotice" class="profile-update-notice animate-fade-in">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 4v6h-6"/>
+            <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+          </svg>
+          <span>{{ profileUpdateNotice }}</span>
+        </div>
+
+        <!-- 顶部自然语言总结 -->
+        <div v-if="profileSummary" class="profile-summary animate-fade-in" style="animation-delay: 0.1s">
+          <p>{{ profileSummary }}</p>
+        </div>
+
         <template v-if="userProfile.categories && userProfile.categories.length">
           <div class="profile-section animate-fade-in" style="animation-delay: 0.2s">
             <div class="section-header">
@@ -79,7 +93,7 @@
                 <path d="M21.21 15.89A10 10 0 118 2.83"/>
                 <path d="M22 12A10 10 0 0012 2v10z"/>
               </svg>
-              <h3>类别兴趣分布</h3>
+              <h3>你的兴趣方向</h3>
             </div>
             <div class="profile-pie-wrap">
               <div ref="chartRef" class="profile-pie-chart"></div>
@@ -102,7 +116,7 @@
                 <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
                 <line x1="7" y1="7" x2="7.01" y2="7"/>
               </svg>
-              <h3>兴趣标签</h3>
+              <h3>你最近关注的话题</h3>
             </div>
             <div class="profile-tags">
               <div
@@ -143,7 +157,10 @@ export default {
     userProfile: { type: Object, default: null },
     profileLoading: { type: Boolean, default: false },
     pieCategoriesLegend: { type: Array, default: () => [] },
-    userCluster: { type: Object, default: null }
+    userCluster: { type: Object, default: null },
+    // 新增：自然语言总结和更新提示
+    profileSummary: { type: String, default: '' },
+    profileUpdateNotice: { type: String, default: '' }
   },
   setup(props) {
     const chartRef = ref(null)
@@ -407,15 +424,21 @@ export default {
       { deep: true }
     )
 
-    return { 
-      chartRef, 
-      graphRef, 
-      formatScore, 
-      clusterGraphNodes, 
-      clusterGraphLinks, 
-      clusterGraphLoading, 
+    // 自然语言总结（从 props 获取，由 App.vue 计算后传入）
+    const profileSummary = computed(() => props.profileSummary)
+    const profileUpdateNotice = computed(() => props.profileUpdateNotice)
+    
+    return {
+      chartRef,
+      graphRef,
+      formatScore,
+      clusterGraphNodes,
+      clusterGraphLinks,
+      clusterGraphLoading,
       deleteSubcategory,
-      filteredSubcategories 
+      filteredSubcategories,
+      profileSummary,
+      profileUpdateNotice
     }
   }
 }
@@ -484,6 +507,49 @@ export default {
 .header-text .subtitle {
   font-size: 13px;
   color: #64748b;
+}
+
+/* 画像更新提示条 */
+.profile-update-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1px solid #bae6fd;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  color: #0369a1;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.profile-update-notice svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 顶部自然语言总结 */
+.profile-summary {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+
+.profile-summary p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #334155;
 }
 
 .animate-fade-in {

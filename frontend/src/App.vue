@@ -73,6 +73,8 @@
         :profile-loading="profileLoading"
         :pie-categories-legend="pieCategoriesLegend"
         :user-cluster="userCluster"
+        :profile-summary="profileSummary"
+        :profile-update-notice="profileUpdateNotice"
       />
       <HistoryView
         v-else-if="currentPage === 'history'"
@@ -207,6 +209,10 @@ export default {
     const userProfile = ref(null)
     const profileLoading = ref(false)
     const userCluster = ref(null)
+    // 画像快照相关
+    const previousProfileSnapshot = ref(null)
+    const profileSummary = ref('')
+    const profileUpdateNotice = ref('')
     const historyList = ref([])
     const historyLoading = ref(false)
     const historyCount = ref(null)
@@ -266,7 +272,105 @@ export default {
       else currentPage.value = page
     }
 
-    async function fetchUserProfile(uid) {
+    function goProfile() {
+      currentPage.value = 'profile'
+      const uid = currentUser.value.username
+      // 保存当前画像快照用于对比
+      if (userProfile.value) {
+        previousProfileSnapshot.value = JSON.parse(JSON.stringify(userProfile.value))
+      }
+      if (uid) {
+        // 刷新画像，获取最新数据
+        fetchUserProfile(uid, true) // 传入 true 表示这是进入个人中心时触发的刷新
+        api.getUserCluster(uid).then(res => { userCluster.value = res.data }).catch(() => { userCluster.value = null })
+      }
+    }
+    
+    /**
+     * 计算画像变化并生成自然语言总结
+     * @param {Object} currentProfile - 当前画像
+     * @param {Object} previousProfile - 上次画像（可为 null）
+     * @returns {{summary: string, notice: string}}
+     */
+    function computeProfileSummaryAndNotice(currentProfile, previousProfile) {
+      const result = { summary: '', notice: '' }
+      if (!currentProfile) return result
+      
+      const categories = currentProfile.categories || []
+      const subcategories = currentProfile.subcategories || []
+      
+      // 生成当前偏好总结
+      if (categories.length > 0) {
+        // 获取前两个主要类别
+        const topCategories = categories.slice(0, 2).map(c => c.name).join('、')
+        // 获取前三个兴趣标签
+        const topSubcategories = subcategories.slice(0, 3).map(s => s.name).join('、')
+        
+        if (topCategories) {
+          result.summary = `您当前偏好${topCategories}类新闻`
+          if (topSubcategories) {
+            result.summary += `，近期对${topSubcategories}主题关注较多`
+          }
+        }
+      }
+      
+      // 对比上次画像生成变化提示
+      if (previousProfile) {
+        const prevCategories = previousProfile.categories || []
+        const prevSubcategories = previousProfile.subcategories || []
+        
+        const changes = []
+        
+        // 检查类别变化
+        const currentCatMap = new Map(categories.map(c => [c.name, c.score]))
+        const prevCatMap = new Map(prevCategories.map(c => [c.name, c.score]))
+        
+        for (const [name, score] of currentCatMap) {
+          const prevScore = prevCatMap.get(name) || 0
+          const diff = (score - prevScore) * 100
+          if (diff > 3) {
+            changes.push({ type: 'category', name, diff, direction: 'up' })
+          } else if (diff < -3) {
+            changes.push({ type: 'category', name, diff: -diff, direction: 'down' })
+          }
+        }
+        
+        // 检查新增/消失的子话题
+        const currentSubMap = new Map(subcategories.map(s => [s.name, s.score]))
+        const prevSubSet = new Set(prevSubcategories.map(s => s.name))
+        
+        for (const [name] of currentSubMap) {
+          if (!prevSubSet.has(name)) {
+            changes.push({ type: 'new_topic', name, direction: 'new' })
+          }
+        }
+        
+        // 生成更新提示
+        if (changes.length > 0) {
+          const upItems = changes.filter(c => c.direction === 'up' || c.direction === 'new').slice(0, 2)
+          if (upItems.length > 0) {
+            const upNames = upItems.map(c => c.name).join('、')
+            result.notice = `已根据最新阅读行为更新画像，${upNames}兴趣提升明显`
+          } else {
+            result.notice = '已根据近期阅读行为更新画像'
+          }
+        } else {
+          result.notice = '已根据近期阅读行为更新画像'
+        }
+      } else {
+        // 首次访问
+        result.notice = ''
+      }
+      
+      return result
+    }
+    
+    /**
+     * 刷新用户画像（带画像对比和通知生成）
+     * @param {string} uid - 用户ID
+     * @param {boolean} generateNotice - 是否生成更新通知
+     */
+    async function fetchUserProfile(uid, generateNotice = false) {
       if (!uid) {
         userProfile.value = null
         return
@@ -274,20 +378,23 @@ export default {
       profileLoading.value = true
       try {
         const res = await api.getUserProfile(uid)
-        userProfile.value = res.data
+        const newProfile = res.data
+        
+        if (generateNotice && newProfile) {
+          // 进入个人中心时，计算画像变化并生成总结
+          const { summary, notice } = computeProfileSummaryAndNotice(newProfile, previousProfileSnapshot.value)
+          profileSummary.value = summary
+          profileUpdateNotice.value = notice
+          
+          // 更新快照
+          previousProfileSnapshot.value = JSON.parse(JSON.stringify(newProfile))
+        }
+        
+        userProfile.value = newProfile
       } catch (_) {
         userProfile.value = null
       } finally {
         profileLoading.value = false
-      }
-    }
-
-    function goProfile() {
-      currentPage.value = 'profile'
-      const uid = currentUser.value.username
-      if (uid) {
-        fetchUserProfile(uid)
-        api.getUserCluster(uid).then(res => { userCluster.value = res.data }).catch(() => { userCluster.value = null })
       }
     }
 
