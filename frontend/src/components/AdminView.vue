@@ -43,33 +43,9 @@
         {{ error }}
       </div>
 
-      <!-- 趋势图表区域 -->
-      <section class="charts-row">
-        <div class="chart-card animate-fade-in" style="animation-delay: 0.1s">
-          <div class="chart-header">
-            <span class="chart-title">近7天活跃用户数</span>
-            
-          </div>
-          <LineChart 
-            :data="overview?.dau_trend || []" 
-            color="#6366f1"
-          />
-        </div>
-        <div class="chart-card animate-fade-in" style="animation-delay: 0.2s">
-          <div class="chart-header">
-            <span class="chart-title">用户交互事件数量</span>
-            
-          </div>
-          <LineChart 
-            :data="overview?.events_trend || []" 
-            color="#f59e0b"
-          />
-        </div>
-      </section>
-
-      <!-- 聚类信息卡片 -->
+      <!-- 24小时统计卡片 -->
       <section class="cards">
-        <div class="card card-gradient-1 animate-fade-in" style="animation-delay: 0.3s">
+        <div class="card card-gradient-1 animate-fade-in" style="animation-delay: 0.1s">
           <div class="card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
@@ -85,7 +61,7 @@
           <div class="card-decoration"></div>
         </div>
         
-        <div class="card card-gradient-2 animate-fade-in" style="animation-delay: 0.4s">
+        <div class="card card-gradient-2 animate-fade-in" style="animation-delay: 0.2s">
           <div class="card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
@@ -97,6 +73,31 @@
           </div>
           <div class="card-decoration"></div>
         </div>
+      </section>
+
+      <!-- 趋势图表区域 -->
+      <section class="charts-row">
+        <div class="chart-card animate-fade-in" style="animation-delay: 0.3s">
+          <div class="chart-header">
+            <span class="chart-title">近7天活跃用户数</span>
+            
+          </div>
+          <LineChart
+            :data="overview?.dau_trend || []"
+            color="#6366f1"
+          />
+        </div>
+        <div class="chart-card animate-fade-in" style="animation-delay: 0.4s">
+          <div class="chart-header">
+            <span class="chart-title">用户交互事件数量</span>
+            
+          </div>
+          <LineChart
+            :data="overview?.events_trend || []"
+            color="#f59e0b"
+          />
+        </div>
+      </section>
 <!--         
         <div class="card card-gradient-3 animate-fade-in" style="animation-delay: 0.5s">
           <div class="card-icon">
@@ -112,7 +113,6 @@
           </div>
           <div class="card-decoration"></div>
         </div> -->
-      </section>
 
       <!-- 类别和新闻图表 -->
       <section class="split">

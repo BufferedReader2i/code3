@@ -32,22 +32,20 @@
             @keyup.enter="$emit('search')"
           >
         </div>
-        <div class="search-row">
-          <div class="search-input-wrapper">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="7" height="7"/>
-              <rect x="14" y="3" width="7" height="7"/>
-              <rect x="14" y="14" width="7" height="7"/>
-              <rect x="3" y="14" width="7" height="7"/>
-            </svg>
-            <select
-              :value="category"
-              @change="$emit('update:category', $event.target.value)"
-            >
-              <option value="">全部类别</option>
-              <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
-            </select>
-          </div>
+        <div class="search-input-wrapper category-select">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
+          </svg>
+          <select
+            :value="category"
+            @change="$emit('update:category', $event.target.value)"
+          >
+            <option value="">全部类别</option>
+            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
         </div>
         <button type="button" class="btn-search" @click="$emit('search')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -228,14 +226,41 @@ export default {
 /* 搜索表单 */
 .search-form {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 14px;
   margin-bottom: 24px;
+  align-items: stretch;
+}
+
+.search-form {
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+  margin-bottom: 24px;
+  align-items: stretch;
+}
+
+.search-form .search-input-wrapper.main-input {
+  flex: 3;
+}
+
+.search-form .search-input-wrapper.category-select {
+  flex: 1;
+  min-width: 140px;
+  max-width: 180px;
+}
+
+.search-form .btn-search {
+  flex-shrink: 0;
+  height: 52px;
+  align-self: center;
+  padding: 0 28px;
 }
 
 .search-input-wrapper {
   position: relative;
   flex: 1;
+  display: flex;
 }
 
 .search-input-wrapper svg {
@@ -256,13 +281,15 @@ export default {
 .search-input-wrapper input,
 .search-input-wrapper select {
    width: 100%;
-   padding: 14px 16px 14px 48px;
+   height: 52px;
+   padding: 0 16px 0 48px;
    border: 2px solid #e2e8f0;
    border-radius: 12px;
    font-size: 15px;
    background: #f8fafc;
    box-sizing: border-box;
    transition: all 0.2s ease;
+   line-height: 52px;
  }
 
 .search-input-wrapper select {
@@ -270,12 +297,11 @@ export default {
    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
    background-repeat: no-repeat;
    background-position: right 16px center;
-   padding-right: 40px;
  }
 
 .search-input-wrapper.main-input input {
-  padding: 16px 16px 16px 54px;
-  font-size: 16px;
+   padding: 0 16px 0 54px;
+   font-size: 16px;
 }
 
 .search-input-wrapper input:focus {

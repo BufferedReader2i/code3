@@ -1143,9 +1143,9 @@ class RecommendationService:
             where = []
             args = []
             if q:
-                where.append("(title LIKE %s OR abstract LIKE %s OR news_id LIKE %s)")
+                where.append("(title LIKE %s OR abstract LIKE %s OR body LIKE %s OR news_id LIKE %s)")
                 like = f"%{q}%"
-                args.extend([like, like, like])
+                args.extend([like, like, like, like])
             if category:
                 where.append("category=%s")
                 args.append(category)
