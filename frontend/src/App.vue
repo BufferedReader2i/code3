@@ -108,6 +108,10 @@
       <NewsManagementView
         v-else-if="currentPage === 'news-management' && isAdmin"
       />
+      <ChangePasswordView
+        v-else-if="currentPage === 'change-password'"
+        @back="onNavigate('recommend')"
+      />
       <AdminView
         v-else-if="currentPage === 'admin' && isAdmin"
         :overview="adminOverview"
@@ -137,6 +141,7 @@ import SearchView from './components/SearchView.vue'
 import AdminView from './components/AdminView.vue'
 import NewsManagementView from './components/NewsManagementView.vue'
 import FavoritesView from './components/FavoritesView.vue'
+import ChangePasswordView from './components/ChangePasswordView.vue'
 
 export default {
   name: 'App',
@@ -150,7 +155,8 @@ export default {
     SearchView,
     AdminView,
     NewsManagementView,
-    FavoritesView
+    FavoritesView,
+    ChangePasswordView
   },
   setup() {
     // 异步任务队列

@@ -10,6 +10,10 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
 class AuthResponse(BaseModel):
     token: str
     username: str
@@ -125,6 +129,7 @@ class AdminNewsListResponse(BaseModel):
 class AdminNewsUpdateRequest(BaseModel):
     title: Optional[str] = None
     abstract: Optional[str] = None
+    body: Optional[str] = None
     category: Optional[str] = None
     subcategory: Optional[str] = None
     status: Optional[Literal["active", "inactive"]] = None

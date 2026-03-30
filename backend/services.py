@@ -862,7 +862,7 @@ class RecommendationService:
                 args.append(status)
             where_sql = ("WHERE " + " AND ".join(where)) if where else ""
             sql = f"""
-                SELECT n.news_id, n.title, n.abstract, n.category, n.subcategory,
+                SELECT n.news_id, n.title, n.abstract, n.body, n.category, n.subcategory,
                        COALESCE(s.status,'active') AS status,
                        n.created_at,
                        COUNT(CASE WHEN e.event_type='dislike' THEN 1 END) AS dislike_count
@@ -889,6 +889,7 @@ class RecommendationService:
                         "status": r.get("status") or "active",
                         "created_at": str(r.get("created_at")) if r.get("created_at") is not None else None,
                         "abstract": (r.get("abstract") or "").strip(),
+                        "body": (r.get("body") or "").strip(),
                         "dislike_count": int(r.get("dislike_count") or 0),
                     }
                 )
@@ -903,7 +904,7 @@ class RecommendationService:
             return []
         try:
             sql = """
-                SELECT n.news_id, n.title, n.abstract, n.category, n.subcategory,
+                SELECT n.news_id, n.title, n.abstract, n.body, n.category, n.subcategory,
                        COALESCE(s.status,'active') AS status,
                        n.created_at,
                        COUNT(CASE WHEN e.event_type='dislike' THEN 1 END) AS dislike_count
@@ -929,6 +930,7 @@ class RecommendationService:
                         "status": r.get("status") or "active",
                         "created_at": str(r.get("created_at")) if r.get("created_at") is not None else None,
                         "abstract": (r.get("abstract") or "").strip(),
+                        "body": (r.get("body") or "").strip(),
                         "dislike_count": int(r.get("dislike_count") or 0),
                     }
                 )
@@ -936,7 +938,7 @@ class RecommendationService:
         finally:
             conn.close()
 
-    def admin_update_news(self, news_id, title=None, abstract=None, category=None, subcategory=None, status=None):
+    def admin_update_news(self, news_id, title=None, abstract=None, body=None, category=None, subcategory=None, status=None):
         conn = get_connection()
         if not conn:
             raise RuntimeError("数据库不可用")
@@ -949,6 +951,9 @@ class RecommendationService:
             if abstract is not None:
                 fields.append("abstract=%s")
                 args.append(abstract)
+            if body is not None:
+                fields.append("body=%s")
+                args.append(body)
             if category is not None:
                 fields.append("category=%s")
                 args.append(category)

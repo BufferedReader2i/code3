@@ -76,10 +76,10 @@
             <h4 class="flagged-title">{{ n.title }}</h4>
             <p class="flagged-abstract">{{ n.abstract }}</p>
             <div class="item-actions">
-              <button type="button" class="btn-mini btn-danger" @click="toggleStatus(n)">
+              <button type="button" class="btn-mini" :class="{ 'btn-danger': n.status === 'active' }" @click="toggleStatus(n)">
                 {{ n.status === 'active' ? '下架' : '上架' }}
               </button>
-              <!-- <button type="button" class="btn-mini" @click="editNews(n)">修改</button> -->
+              <button type="button" class="btn-mini btn-edit" @click="editNews(n)">修改</button>
               <button type="button" class="btn-mini btn-delete" @click="deleteNews(n)">删除</button>
             </div>
           </div>
@@ -133,7 +133,7 @@
                   <button type="button" class="btn-mini" :class="{ 'btn-danger': n.status === 'active' }" @click="toggleStatus(n)">
                     {{ n.status === 'active' ? '下架' : '上架' }}
                   </button>
-                   <!-- <button type="button" class="btn-mini" @click="editNews(n)">修改</button> -->
+                  <button type="button" class="btn-mini btn-edit" @click="editNews(n)">修改</button>
                   <button type="button" class="btn-mini btn-delete" @click="deleteNews(n)">删除</button>
                 </td>
               </tr>
@@ -479,13 +479,21 @@ export default {
   border-radius: 3px;
   font-size: 12px;
   cursor: pointer;
-  background-color: #007bff;
+  background-color: #28a745;
   color: white;
   transition: background-color 0.2s;
 }
 
 .btn-mini:hover {
-  background-color: #0056b3;
+  background-color: #218838;
+}
+
+.btn-mini.btn-edit {
+  background-color: #1799c4;
+}
+
+.btn-mini.btn-edit:hover {
+  background-color: #138aad;
 }
 
 .btn-mini.btn-delete {

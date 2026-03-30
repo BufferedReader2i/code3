@@ -16,6 +16,13 @@ export const api = {
     return axios.post(`${API_BASE}/auth/login`, { username, password })
   },
 
+  changePassword(currentPassword, newPassword) {
+    return axios.patch(`${API_BASE}/user/password`, {
+      current_password: currentPassword,
+      new_password: newPassword
+    }, { headers: authHeaders() })
+  },
+
   getInitialRecommendations(userId) {
     return axios.post(`${API_BASE}/recommend`, { user_id: userId })
   },

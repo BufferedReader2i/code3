@@ -4,7 +4,7 @@ from backend.models import (
     RecommendRequest, ClassifyRequest, ClickRequest,
     RecommendResponse, ClassifyResponse, ClickResponse, HistoryResponse, HistoryListResponse,
     UserProfileResponse, ExampleUsersResponse,
-    RegisterRequest, LoginRequest, AuthResponse,
+    RegisterRequest, LoginRequest, AuthResponse, ChangePasswordRequest,
     UploadNewsRequest, UploadNewsResponse,
     EventRequest, EventResponse, UserEventsResponse,
     AdminNewsListResponse, AdminNewsUpdateRequest, AdminNewsUpdateResponse,
@@ -89,6 +89,27 @@ async def login(req: LoginRequest):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     token = create_token(row["username"], row["role"])
     return AuthResponse(token=token, username=row["username"], role=row["role"])
+
+
+@app.patch("/api/user/password")
+async def change_password(req: ChangePasswordRequest, current=Depends(get_current_user)):
+    username = current["username"]
+    row = _get_user_from_db(username)
+    if not row:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if not verify_password(req.current_password, row["password_hash"]):
+        raise HTTPException(status_code=400, detail="当前密码错误")
+    new_hash = hash_password(req.new_password)
+    conn = get_connection()
+    if not conn:
+        raise HTTPException(status_code=503, detail="数据库不可用")
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE users SET password_hash = %s WHERE username = %s", (new_hash, username))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True, "message": "密码修改成功"}
 
 
 # ---------- 推荐与分类（user_id 由前端传入；每次请求都按当前用户历史重新计算推荐） ----------
@@ -233,6 +254,7 @@ async def admin_update_news(news_id: str, req: AdminNewsUpdateRequest, admin=Dep
         news_id=news_id,
         title=req.title,
         abstract=req.abstract,
+        body=req.body,
         category=req.category,
         subcategory=req.subcategory,
         status=req.status,
