@@ -334,21 +334,40 @@ class RecommendationService:
 
         cat_weighted = defaultdict(float)
         subcat_weighted = defaultdict(float)
-        dislike_news = self._get_dislike_news(user_id)
-        not_interested_news = self._get_not_interested_news(user_id)
-        liked_news = self._get_liked_news(user_id)
-        
+
+        # 批量获取用户对历史新闻的最新事件（处理同一新闻多条记录的情况）
+        latest_events = self._get_latest_events_for_news(user_id, ordered)
+
+        # 定义权重乘数
+        # 基于最新事件类型：显式正向增强
+        EVENT_WEIGHTS = {
+            "like": 1.5,        # 点赞 - 正向增强
+            "favorite": 2.0,    # 收藏 - 强正向增强
+            "dislike": -0.2,    # 不喜欢 - 负向
+            "not_interested": -0.5,  # 不感兴趣 - 强负向
+            # click, dwell, unlike, unfavorite, undislike, remove_not_interested 使用基础权重 1.0
+        }
+        # dwell > 2秒 额外增强
+        DWELL_THRESHOLD_MS = 2000
+        DWELL_BOOST = 1.2
+
         for nid, w in zip(ordered, weights):
             info = self.news_info.get(nid) or self.rec.news_data.get(nid, {})
             c = info.get("category", "N/A")
             s = info.get("subcategory", "N/A") or "N/A"
-            liked_news = self._get_liked_news(user_id)
-            if nid in liked_news:
-                w *= 0.5
-            elif nid in not_interested_news:
-                w *= -0.5
-            elif nid in dislike_news:
-                w *= -0.2
+
+            # 根据最新事件类型调整权重
+            latest = latest_events.get(nid)
+            if latest:
+                event_type = latest.get("event_type", "")
+                # 应用事件类型权重
+                if event_type in EVENT_WEIGHTS:
+                    w *= EVENT_WEIGHTS[event_type]
+                # dwell 时长额外增强
+                dwell_ms = latest.get("dwell_ms", 0)
+                if dwell_ms and dwell_ms > DWELL_THRESHOLD_MS:
+                    w *= DWELL_BOOST
+
             cat_weighted[c] += w
             subcat_weighted[s] += w
 
@@ -377,6 +396,36 @@ class RecommendationService:
             "subcategories": subcategories,
             "history_count": total,
         }
+
+    def _get_latest_events_for_news(self, user_id, news_ids):
+        """
+        批量获取用户对多个新闻的最新事件（按ts排序第一条）。
+        返回: {news_id: {"event_type": str, "dwell_ms": int}}
+        对于同一新闻有多条记录的情况，取最新（ts最大）的那条。
+        """
+        if not news_ids:
+            return {}
+        conn = get_connection()
+        if not conn:
+            return {}
+        # 使用子查询取每个新闻的最新事件
+        placeholders = ",".join(["%s"] * len(news_ids))
+        try:
+            with conn.cursor() as cur:
+                cur.execute(f"""
+                    SELECT news_id, event_type, dwell_ms
+                    FROM (
+                        SELECT news_id, event_type, dwell_ms,
+                               ROW_NUMBER() OVER (PARTITION BY news_id ORDER BY ts DESC) as rn
+                        FROM user_events
+                        WHERE user_id=%s AND news_id IN ({placeholders})
+                    ) t
+                    WHERE rn = 1
+                """, (user_id, *news_ids))
+                return {r["news_id"]: {"event_type": r["event_type"], "dwell_ms": r.get("dwell_ms") or 0}
+                        for r in (cur.fetchall() or [])}
+        finally:
+            conn.close()
 
     def _get_dislike_news(self, user_id):
         """获取用户 dislike 的新闻 ID 集合"""
