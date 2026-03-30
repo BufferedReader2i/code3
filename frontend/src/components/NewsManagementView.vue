@@ -112,7 +112,7 @@
                 <th>ID</th>
                 <th>标题</th>
                 <th>类别</th>
-                <th>子标签</th>
+                <th>话题</th>
                 <th>状态</th>
                 <th>操作</th>
               </tr>
