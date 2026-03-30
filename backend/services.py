@@ -638,14 +638,13 @@ class RecommendationService:
             if USE_MIND:
                 self._persist_click_to_db(user_id, news_id)
             return self._persist_event_to_db(user_id, news_id, "click", ts_ms=ts, dwell_ms=dwell_ms, extra=extra)
-        if event_type in ("like", "dislike", "not_interested", "favorite", "unfavorite", "dwell"):
+        if event_type in ("like", "unlike", "dislike", "undislike", "not_interested", "remove_not_interested", "favorite", "unfavorite", "dwell"):
             return self._persist_event_to_db(user_id, news_id, event_type, ts_ms=ts, dwell_ms=dwell_ms, extra=extra)
         return self._persist_event_to_db(user_id, news_id, str(event_type), ts_ms=ts, dwell_ms=dwell_ms, extra=extra)
 
     def click_news(self, user_id, news_id):
-        # click 事件：双写到 user_events（统计/画像/聚类复用）
+        # click 事件：通过 record_event 统一处理持久化
         self.record_event(user_id, news_id, "click")
-        self._persist_click_to_db(user_id, news_id)
         if USE_MIND:
             clicked_info = self.news_info.get(news_id, {})
             session_clicked = set(self.session_clicks.get(user_id, []))

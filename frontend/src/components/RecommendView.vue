@@ -55,9 +55,13 @@
             class="news-card-animate"
             @click="$emit('open-detail', $event)"
             @like="$emit('like', $event)"
+            @unlike="$emit('unlike', $event)"
             @dislike="$emit('dislike', $event)"
+            @undislike="$emit('undislike', $event)"
             @favorite="$emit('favorite', $event)"
+            @unfavorite="$emit('unfavorite', $event)"
             @not-interested="$emit('not-interested', $event)"
+            @remove-not-interested="$emit('remove-not-interested', $event)"
           />
         </div>
       </div>
@@ -99,7 +103,7 @@ export default {
     loading: { type: Boolean, default: false },
     error: { type: String, default: '' }
   },
-  emits: ['refresh', 'open-detail', 'like', 'dislike', 'favorite', 'not-interested']
+  emits: ['refresh', 'open-detail', 'like', 'unlike', 'dislike', 'undislike', 'favorite', 'unfavorite', 'not-interested', 'remove-not-interested']
 }
 </script>
 

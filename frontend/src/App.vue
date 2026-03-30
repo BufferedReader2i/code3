@@ -39,9 +39,13 @@
         @refresh="loadInitialRecommendations"
         @open-detail="openNewsDetail"
         @like="onLike"
+        @unlike="onUnlike"
         @dislike="onDislike"
+        @undislike="onUndislike"
         @favorite="onFavorite"
+        @unfavorite="onUnfavorite"
         @not-interested="onNotInterested"
+        @remove-not-interested="onRemoveNotInterested"
       />
       <NewsDetailView
         v-else-if="currentPage === 'detail' && selectedNews"
@@ -337,17 +341,33 @@ export default {
       const saved = await postSimpleEvent('like', news)
       showFeedbackToast(saved ? '已赞' : '反馈未保存（请检查数据库或网络）')
     }
+    async function onUnlike(news) {
+      const saved = await postSimpleEvent('unlike', news)
+      showFeedbackToast(saved ? '已取消赞' : '反馈未保存（请检查数据库或网络）')
+    }
     async function onDislike(news) {
       const saved = await postSimpleEvent('dislike', news)
       showFeedbackToast(saved ? '已踩' : '反馈未保存（请检查数据库或网络）')
+    }
+    async function onUndislike(news) {
+      const saved = await postSimpleEvent('undislike', news)
+      showFeedbackToast(saved ? '已取消踩' : '反馈未保存（请检查数据库或网络）')
     }
     async function onFavorite(news) {
       const saved = await postSimpleEvent('favorite', news)
       showFeedbackToast(saved ? '已收藏' : '反馈未保存（请检查数据库或网络）')
     }
+    async function onUnfavorite(news) {
+      const saved = await postSimpleEvent('unfavorite', news)
+      showFeedbackToast(saved ? '已取消收藏' : '反馈未保存（请检查数据库或网络）')
+    }
     async function onNotInterested(news) {
       const saved = await postSimpleEvent('not_interested', news)
       showFeedbackToast(saved ? '已标记不感兴趣' : '反馈未保存（请检查数据库或网络）')
+    }
+    async function onRemoveNotInterested(news) {
+      const saved = await postSimpleEvent('remove_not_interested', news)
+      showFeedbackToast(saved ? '已取消不感兴趣' : '反馈未保存（请检查数据库或网络）')
     }
 
     function goHistory() {
@@ -645,9 +665,13 @@ export default {
       goAdmin,
       doSearch,
       onLike,
+      onUnlike,
       onDislike,
+      onUndislike,
       onFavorite,
+      onUnfavorite,
       onNotInterested,
+      onRemoveNotInterested,
       refreshAdmin,
       rebuildClusters,
       autoRecognize,

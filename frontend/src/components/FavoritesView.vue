@@ -22,8 +22,8 @@
       </div>
 
       <div v-else class="favorites-list">
-        <div v-for="news in favorites" :key="news.id" class="favorite-item" @click="$emit('open-detail', news)">
-          <div class="news-content">
+        <div v-for="news in favorites" :key="news.id" class="favorite-item">
+          <div class="news-content" @click="$emit('open-detail', news)">
             <div class="news-title">{{ news.title }}</div>
             <div class="news-meta">
               <span class="category">{{ news.category }}</span>
@@ -31,6 +31,12 @@
             </div>
             <div class="news-abstract">{{ news.abstract }}</div>
           </div>
+          <button class="btn-remove" @click.stop="unfavorite(news)" title="取消收藏">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
       </div>
     </div>
@@ -61,12 +67,25 @@ export default {
       this.loading = true
       this.error = ''
       try {
-        const res = await apiCall(`/api/user/favorites?user_id=${this.userId}&limit=100`, 'GET')
+        const res = await apiCall(`http://localhost:8000/api/user/favorites?user_id=${this.userId}&limit=100`, 'GET')
         this.favorites = res.items || []
       } catch (err) {
         this.error = err.message || '加载失败'
       } finally {
         this.loading = false
+      }
+    },
+    async unfavorite(news) {
+      try {
+        await apiCall(`http://localhost:8000/api/event`, 'POST', {
+          user_id: this.userId,
+          news_id: news.id,
+          event_type: 'unfavorite'
+        })
+        // 从列表中移除
+        this.favorites = this.favorites.filter(f => f.id !== news.id)
+      } catch (err) {
+        this.error = err.message || '取消收藏失败'
       }
     }
   }
@@ -173,6 +192,10 @@ export default {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .favorite-item:hover {
@@ -184,6 +207,8 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1;
+  min-width: 0;
 }
 
 .news-title {
@@ -213,5 +238,31 @@ export default {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.btn-remove {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  transition: all 0.2s;
+}
+
+.btn-remove:hover {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.btn-remove svg {
+  width: 16px;
+  height: 16px;
 }
 </style>

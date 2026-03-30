@@ -25,25 +25,50 @@ export default {
   props: {
     news: { type: Object, required: true }
   },
-  emits: ['click', 'like', 'dislike', 'favorite', 'not-interested'],
+  emits: ['click', 'like', 'unlike', 'dislike', 'undislike', 'favorite', 'unfavorite', 'not-interested', 'remove-not-interested'],
   setup(props, { emit }) {
     const feedback = reactive({ like: false, dislike: false, fav: false, ni: false })
+    
     function onLike() {
-      feedback.like = true
-      emit('like', props.news)
+      if (feedback.like) {
+        feedback.like = false
+        emit('unlike', props.news)
+      } else {
+        feedback.like = true
+        emit('like', props.news)
+      }
     }
+    
     function onDislike() {
-      feedback.dislike = true
-      emit('dislike', props.news)
+      if (feedback.dislike) {
+        feedback.dislike = false
+        emit('undislike', props.news)
+      } else {
+        feedback.dislike = true
+        emit('dislike', props.news)
+      }
     }
+    
     function onFav() {
-      feedback.fav = true
-      emit('favorite', props.news)
+      if (feedback.fav) {
+        feedback.fav = false
+        emit('unfavorite', props.news)
+      } else {
+        feedback.fav = true
+        emit('favorite', props.news)
+      }
     }
+    
     function onNi() {
-      feedback.ni = true
-      emit('not-interested', props.news)
+      if (feedback.ni) {
+        feedback.ni = false
+        emit('remove-not-interested', props.news)
+      } else {
+        feedback.ni = true
+        emit('not-interested', props.news)
+      }
     }
+    
     return { feedback, onLike, onDislike, onFav, onNi }
   }
 }

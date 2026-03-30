@@ -29,7 +29,7 @@ class ClickRequest(BaseModel):
 class EventRequest(BaseModel):
     user_id: str
     news_id: str
-    event_type: Literal["click", "like", "dislike", "not_interested", "favorite", "unfavorite", "dwell"]
+    event_type: Literal["click", "like", "unlike", "dislike", "undislike", "not_interested", "remove_not_interested", "favorite", "unfavorite", "dwell"]
     ts: Optional[int] = None  # ms timestamp; server fills if omitted
     dwell_ms: int = 0
     extra: Optional[Dict[str, Any]] = None
