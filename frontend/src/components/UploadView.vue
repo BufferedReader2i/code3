@@ -168,20 +168,7 @@
             <div v-if="topCategoryScores.length > 0" class="category-scores">
               <div class="category-scores-header">{{ uploadResult }}</div>
               <div class="category-scores-list">
-                <!-- <div
-                  v-for="item in topCategoryScores"
-                  :key="item.category"
-                  class="category-score-item"
-                >
-                  <span class="category-name">{{ item.category }}</span>
-                  <div class="score-bar-container">
-                    <div
-                      class="score-bar"
-                      :style="{ width: (item.score * 100) + '%' }"
-                    ></div>
-                  </div>
-                  <span class="score-value">{{ (item.score * 100).toFixed(1) }}%</span>
-                </div> -->
+                
               </div>
             </div>
           </div>
@@ -204,9 +191,7 @@
               <div class="news-category" v-if="news.category">
                 {{ news.category }}{{ news.subcategory ? ` / ${news.subcategory}` : '' }}
               </div>
-              <div class="news-abstract" v-if="news.abstract">
-                {{ news.abstract.substring(0, 80) }}{{ news.abstract.length > 80 ? '...' : '' }}
-              </div>
+             
             </div>
           </div>
         </div>
@@ -270,17 +255,38 @@ export default {
         this.$emit('batch-upload', { error: '仅支持 CSV 文件' })
         return
       }
+      // 先尝试 UTF-8
+      this.readFileWithEncoding(file, 'UTF-8', (utf8Result) => {
+        if (this.containsGarbled(utf8Result)) {
+          // UTF-8 失败，尝试 GBK
+          this.readFileWithEncoding(file, 'GBK', (gbkResult) => {
+            try {
+              const rows = this.parseCSV(gbkResult)
+              this.$emit('batch-upload', { rows })
+            } catch (err) {
+              this.$emit('batch-upload', { error: 'CSV 解析失败: ' + err.message })
+            }
+          })
+        } else {
+          try {
+            const rows = this.parseCSV(utf8Result)
+            this.$emit('batch-upload', { rows })
+          } catch (err) {
+            this.$emit('batch-upload', { error: 'CSV 解析失败: ' + err.message })
+          }
+        }
+      })
+    },
+    readFileWithEncoding(file, encoding, callback) {
       const reader = new FileReader()
       reader.onload = (e) => {
-        try {
-          const csv = e.target.result
-          const rows = this.parseCSV(csv)
-          this.$emit('batch-upload', { rows })
-        } catch (err) {
-          this.$emit('batch-upload', { error: 'CSV 解析失败: ' + err.message })
-        }
+        callback(e.target.result)
       }
-      reader.readAsText(file)
+      reader.readAsText(file, encoding)
+    },
+    containsGarbled(text) {
+      // 检测是否包含乱码字符（常见于编码错误）
+      return text.includes('��') || text.includes('\ufffd')
     },
     parseCSV(csv) {
       const rows = []
