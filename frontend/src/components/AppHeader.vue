@@ -33,7 +33,7 @@
           <span>我的收藏</span>
         </button>
         <button v-if="isAdmin" type="button" class="nav-tab" :class="{ active: currentPage === 'upload' }" @click="$emit('navigate', 'upload')">
-          <span>上传新闻</span>
+          <span>新闻发布</span>
         </button>
         <button v-if="isAdmin" type="button" class="nav-tab" :class="{ active: currentPage === 'news-management' }" @click="$emit('navigate', 'news-management')">
           <span>新闻管理</span>
