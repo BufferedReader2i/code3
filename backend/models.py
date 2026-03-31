@@ -122,6 +122,8 @@ class AdminNewsItem(BaseModel):
     subcategory: str
     status: str = "active"
     created_at: Optional[str] = None
+    abstract: str = ""
+    body: str = ""
 
 class AdminNewsListResponse(BaseModel):
     items: List[AdminNewsItem]

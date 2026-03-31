@@ -851,9 +851,9 @@ class RecommendationService:
             where = []
             args = []
             if q:
-                where.append("(n.title LIKE %s OR n.abstract LIKE %s OR n.news_id LIKE %s)")
+                where.append("(n.title LIKE %s OR n.abstract LIKE %s OR n.body LIKE %s OR n.subcategory LIKE %s OR n.news_id LIKE %s)")
                 like = f"%{q}%"
-                args.extend([like, like, like])
+                args.extend([like, like, like, like, like])
             if category:
                 where.append("n.category=%s")
                 args.append(category)
@@ -1152,11 +1152,11 @@ class RecommendationService:
                 like = f"%{q}%"
                 args.extend([like, like, like, like])
             if category:
-                where.append("category=%s")
-                args.append(category)
+                where.append("category LIKE %s")
+                args.append(f"%{category}%")
             if subcategory:
-                where.append("subcategory=%s")
-                args.append(subcategory)
+                where.append("subcategory LIKE %s")
+                args.append(f"%{subcategory}%")
             where_sql = ("WHERE " + " AND ".join(where)) if where else ""
             with conn.cursor() as cur:
                 cur.execute(

@@ -411,7 +411,7 @@ export default {
         const res = await api.searchNews({
           q: searchQ.value,
           category: searchCategory.value,
-          subcategory: searchQ.value,
+          subcategory: searchSubcategory.value,
           limit: 50
         })
         const items = res.data?.items || []
