@@ -1592,8 +1592,37 @@ class RecommendationService:
             conn.close()
 
     def delete_user_subcategory(self, user_id, subcategory_name):
-       """删除用户的兴趣标签（仅返回成功，实际删除在前端处理）"""
-       pass
+        """删除用户的兴趣标签，并更新数据库中的画像"""
+        conn = get_connection()
+        if not conn:
+            return
+        
+        try:
+            with conn.cursor() as cur:
+                # 先获取当前画像
+                cur.execute("""
+                    SELECT categories_json, subcategories_json
+                    FROM user_profile WHERE user_id = %s
+                """, (user_id,))
+                row = cur.fetchone()
+                if not row:
+                    return
+                
+                categories = json.loads(row["categories_json"])
+                subcategories = json.loads(row["subcategories_json"])
+                
+                # 过滤掉要删除的子类别
+                subcategories = [s for s in subcategories if s.get("name") != subcategory_name]
+                
+                # 更新数据库
+                cur.execute("""
+                    UPDATE user_profile
+                    SET subcategories_json = %s
+                    WHERE user_id = %s
+                """, (json.dumps(subcategories, ensure_ascii=False), user_id))
+                conn.commit()
+        finally:
+            conn.close()
 
     def get_cluster_graph(self, user_id, same_cluster_limit=30):
         """返回用户聚类图谱数据：当前用户、所属兴趣群、同群其他用户及连边。"""
