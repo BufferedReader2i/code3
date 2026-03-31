@@ -9,6 +9,7 @@ import math
 import time
 import torch
 import random
+import threading
 from collections import Counter, defaultdict
 
 from backend.db import get_connection
@@ -315,13 +316,76 @@ class RecommendationService:
         except Exception:
             pass
 
-    def get_user_profile(self, user_id, recency_decay=0.85, smooth_threshold=3.0):
+    def _load_profile_from_db(self, user_id):
+        """从数据库加载用户画像"""
+        conn = get_connection()
+        if not conn:
+            return None
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT categories_json, subcategories_json, history_count
+                    FROM user_profile WHERE user_id = %s
+                """, (user_id,))
+                row = cur.fetchone()
+                if row:
+                    return {
+                        "user_id": user_id,
+                        "categories": json.loads(row["categories_json"]),
+                        "subcategories": json.loads(row["subcategories_json"]),
+                        "history_count": row["history_count"]
+                    }
+                return None
+        except Exception:
+            return None
+        finally:
+            conn.close()
+
+    def _save_profile_to_db(self, user_id, profile):
+        """保存用户画像到数据库（异步）"""
+        def _async_save():
+            conn = get_connection()
+            if not conn:
+                return
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO user_profile (user_id, categories_json, subcategories_json, history_count)
+                        VALUES (%s, %s, %s, %s)
+                        ON DUPLICATE KEY UPDATE
+                            categories_json = VALUES(categories_json),
+                            subcategories_json = VALUES(subcategories_json),
+                            history_count = VALUES(history_count)
+                    """, (
+                        user_id,
+                        json.dumps(profile["categories"], ensure_ascii=False),
+                        json.dumps(profile["subcategories"], ensure_ascii=False),
+                        profile["history_count"]
+                    ))
+                conn.commit()
+            except Exception:
+                pass
+            finally:
+                conn.close()
+        
+        # 使用后台线程保存，不阻塞主请求
+        threading.Thread(target=_async_save, daemon=True).start()
+
+    def get_user_profile(self, user_id, recency_decay=0.85, smooth_threshold=3.0, use_db=True):
         """
         复杂用户画像：仅用历史顺序（无时间戳），不做实体。
         - 按位置时间衰减：越靠后（越新）权重越大，weight_i = decay^(L-1-i)。
         - 类别 + 子类两层；分数平滑（样本少时向全局先验靠拢）；相对兴趣（相对全局）；兴趣强度。
         - dislike 事件给予负权重，not_interested 事件给予更强的负权重。
+        - use_db=True 时优先从数据库读取，没有则实时计算并保存到数据库。
         """
+        # 尝试从数据库读取
+        if use_db:
+            db_profile = self._load_profile_from_db(user_id)
+            if db_profile is not None:
+                return db_profile
+        
+        # 数据库中没有，执行实时计算
         ordered = self._get_ordered_history(user_id)
         ordered = [nid for nid in ordered if nid in self.rec.news_data]
         total = len(ordered)
@@ -390,12 +454,18 @@ class RecommendationService:
         categories = _normalize_and_enrich(cat_weighted, global_cat)
         subcategories = _normalize_and_enrich(subcat_weighted, global_subcat)
 
-        return {
+        profile = {
             "user_id": user_id,
             "categories": categories,
             "subcategories": subcategories,
             "history_count": total,
         }
+
+        # 如果需要保存到数据库（use_db=True 且是实时计算的）
+        if use_db:
+            self._save_profile_to_db(user_id, profile)
+
+        return profile
 
     def _get_latest_events_for_news(self, user_id, news_ids):
         """
@@ -686,10 +756,19 @@ class RecommendationService:
             self.session_clicks[user_id].append(news_id)
             if USE_MIND:
                 self._persist_click_to_db(user_id, news_id)
-            return self._persist_event_to_db(user_id, news_id, "click", ts_ms=ts, dwell_ms=dwell_ms, extra=extra)
+            saved = self._persist_event_to_db(user_id, news_id, "click", ts_ms=ts, dwell_ms=dwell_ms, extra=extra)
+            # 用户产生新行为后更新画像（强制重新计算并存入数据库）
+            self.get_user_profile(user_id, use_db=True)
+            return saved
         if event_type in ("like", "unlike", "dislike", "undislike", "not_interested", "remove_not_interested", "favorite", "unfavorite", "dwell"):
-            return self._persist_event_to_db(user_id, news_id, event_type, ts_ms=ts, dwell_ms=dwell_ms, extra=extra)
-        return self._persist_event_to_db(user_id, news_id, str(event_type), ts_ms=ts, dwell_ms=dwell_ms, extra=extra)
+            saved = self._persist_event_to_db(user_id, news_id, event_type, ts_ms=ts, dwell_ms=dwell_ms, extra=extra)
+            # 用户产生新行为后更新画像（强制重新计算并存入数据库）
+            self.get_user_profile(user_id, use_db=True)
+            return saved
+        saved = self._persist_event_to_db(user_id, news_id, str(event_type), ts_ms=ts, dwell_ms=dwell_ms, extra=extra)
+        # 用户产生新行为后更新画像（强制重新计算并存入数据库）
+        self.get_user_profile(user_id, use_db=True)
+        return saved
 
     def click_news(self, user_id, news_id):
         # click 事件：通过 record_event 统一处理持久化

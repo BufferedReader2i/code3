@@ -514,7 +514,7 @@ export default {
       error.value = ''
       recommendations.value = [] // 先清空，让界面立即进入加载状态
       try {
-        await fetchUserProfile(uid)
+        // 不再在此处获取用户画像，画像已存储在数据库中，换一批时直接获取推荐
         const res = await api.getInitialRecommendations(uid)
         const list = res.data?.recommendations
         recommendations.value = Array.isArray(list) ? [...list] : []
@@ -554,20 +554,15 @@ export default {
         selectedNews.value = news
       }
       
-      // 3. 后台异步处理点击事件和用户画像更新（不阻塞UI）
+      // 3. 后台异步处理点击事件（不阻塞UI），画像更新由后端自动处理
       setTimeout(async () => {
         try {
-          // 3.1 记录点击事件（不等待响应）
+          // 3.1 记录点击事件（不等待响应），后端会自动更新用户画像
           api.clickNews(uid, news.id).catch(() => {
             console.warn('点击事件上报失败，但不影响用户体验')
           })
           
-          // 3.2 异步更新用户画像
-          fetchUserProfile(uid).catch(() => {
-            console.warn('用户画像更新失败')
-          })
-          
-          // 3.3 后台刷新推荐列表（为返回时做准备）
+          // 3.2 后台刷新推荐列表（为返回时做准备）
           loadInitialRecommendations().catch(() => {
             console.warn('推荐列表刷新失败')
           })
