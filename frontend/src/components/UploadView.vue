@@ -163,6 +163,27 @@
                 提交上传
               </button>
             </div>
+
+            <!-- 分类概率分布显示（只显示最高的1个） -->
+            <div v-if="topCategoryScores.length > 0" class="category-scores">
+              <div class="category-scores-header">{{ uploadResult }}</div>
+              <div class="category-scores-list">
+                <!-- <div
+                  v-for="item in topCategoryScores"
+                  :key="item.category"
+                  class="category-score-item"
+                >
+                  <span class="category-name">{{ item.category }}</span>
+                  <div class="score-bar-container">
+                    <div
+                      class="score-bar"
+                      :style="{ width: (item.score * 100) + '%' }"
+                    ></div>
+                  </div>
+                  <span class="score-value">{{ (item.score * 100).toFixed(1) }}%</span>
+                </div> -->
+              </div>
+            </div>
           </div>
         </div>
 
@@ -214,6 +235,7 @@ export default {
     uploadCategory: { type: String, default: '' },
     uploadSubcategory: { type: String, default: '' },
     uploadResult: { type: String, default: '' },
+    uploadCategoryScores: { type: Object, default: () => ({}) },
     uploadError: { type: String, default: '' },
     batchNewsList: { type: Array, default: () => [] },
     selectedNewsIndex: { type: Number, default: -1 }
@@ -226,6 +248,16 @@ export default {
   data() {
     return {
       isDragging: false
+    }
+  },
+  computed: {
+    topCategoryScores() {
+      const scores = this.uploadCategoryScores || {}
+      // 按概率降序排序，只取最高的1个
+      return Object.entries(scores)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 1)
+        .map(([category, score]) => ({ category, score }))
     }
   },
   methods: {
@@ -651,5 +683,75 @@ export default {
   .news-list-section {
     max-height: 300px;
   }
+}
+
+/* 分类概率分布 */
+.category-scores {
+  margin-top: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 12px;
+  border: 1px solid #bae6fd;
+}
+
+.category-scores-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0369a1;
+  margin-bottom: 12px;
+}
+
+.category-scores-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.category-score-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.category-rank {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #6366f1;
+  color: white;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.category-name {
+  min-width: 100px;
+  font-size: 13px;
+  color: #334155;
+  font-weight: 500;
+}
+
+.score-bar-container {
+  flex: 1;
+  height: 18px;
+  background: #e2e8f0;
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.score-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: 9px;
+  transition: width 0.3s ease;
+}
+
+.score-value {
+  min-width: 50px;
+  font-size: 12px;
+  color: #475569;
+  text-align: right;
 }
 </style>

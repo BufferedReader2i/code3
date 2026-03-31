@@ -97,6 +97,7 @@
         v-model:upload-category="uploadCategory"
         v-model:upload-subcategory="uploadSubcategory"
         :upload-result="uploadResult"
+        :upload-category-scores="uploadCategoryScores"
         :upload-error="currentPage === 'upload' ? error : ''"
         :batch-news-list="batchNewsList"
         :selected-news-index="selectedNewsIndex"
@@ -241,6 +242,7 @@ export default {
     const uploadCategory = ref('')
     const uploadSubcategory = ref('')
     const uploadResult = ref('')
+    const uploadCategoryScores = ref({})  // 分类概率详情
     const batchNewsList = ref([])
     const selectedNewsIndex = ref(-1)
 
@@ -635,6 +637,8 @@ export default {
         const res = await api.classifyText(text)
         uploadCategory.value = res.data.category || ''
         uploadResult.value = `已识别为：${res.data.category}，置信度 ${(res.data.confidence * 100).toFixed(1)}%`
+        // 保存所有类别的概率分布
+        uploadCategoryScores.value = res.data.all_scores || {}
       } catch (e) {
         error.value = '识别失败: ' + (e.message || '网络错误')
       }
@@ -759,6 +763,7 @@ export default {
       uploadCategory,
       uploadSubcategory,
       uploadResult,
+      uploadCategoryScores,
       onNavigate,
       handleLogin,
       handleRegister,
