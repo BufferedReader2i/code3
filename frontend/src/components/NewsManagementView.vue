@@ -50,7 +50,7 @@
               <input v-model="editingNews.category" type="text" class="form-input">
             </div>
             <div class="form-group">
-              <label>子类别</label>
+              <label>话题</label>
               <input v-model="editingNews.subcategory" type="text" class="form-input">
             </div>
           </div>

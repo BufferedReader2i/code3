@@ -101,8 +101,8 @@
               </div>
             </div>
 
-            <div class="form-row">
-              <div class="form-group">
+            <div class="form-row category-row">
+              <div class="form-group category-input">
                 <label>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="3" width="7" height="7"/>
@@ -113,16 +113,28 @@
                   类别
                 </label>
                 <div class="input-wrapper">
-                  <input 
-                    :value="uploadCategory" 
-                    type="text" 
+                  <input
+                    :value="uploadCategory"
+                    type="text"
                     placeholder="如: Sports"
                     @input="$emit('update:uploadCategory', $event.target.value)"
                   >
                 </div>
               </div>
-
               
+              <!-- 置信度展示框 - 与类别输入框并排 -->
+              <div v-if="topCategoryScores.length > 0" class="form-group confidence-display">
+                <label>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                  识别结果
+                </label>
+                <div class="confidence-box">
+                  <div class="confidence-header">{{ uploadResult }}</div>
+                </div>
+              </div>
             </div>
             <div class="form-row">  
               <div class="form-group">
@@ -130,7 +142,7 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
                   </svg>
-                  标签
+                  话题
                 </label>
                 <div class="input-wrapper">
                   <input 
@@ -164,13 +176,6 @@
               </button>
             </div>
 
-            <!-- 分类概率分布显示（只显示最高的1个） -->
-            <div v-if="topCategoryScores.length > 0" class="category-scores">
-              <div class="category-scores-header">{{ uploadResult }}</div>
-              <div class="category-scores-list">
-                
-              </div>
-            </div>
           </div>
         </div>
 
@@ -471,6 +476,41 @@ export default {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+/* 类别行 - 类别输入框与置信度展示框并排 */
+.category-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.category-input {
+  /* 类别输入框样式 */
+}
+
+.confidence-display {
+  /* 置信度展示框样式 */
+}
+
+.confidence-display .input-wrapper,
+.confidence-box {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 2px solid #bae6fd;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  min-height: calc(1em + 28px + 4px); /* 与输入框相同的 min-height */
+  box-sizing: border-box;
+}
+
+.confidence-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0369a1;
 }
 
 .form-group label {
