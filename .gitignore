@@ -14,7 +14,7 @@ __pycache__/
 *.ckpt
 *.h5
 *.hdf5
-
+*.csv
 # 日志与临时文件
 *.log
 logs/

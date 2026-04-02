@@ -115,21 +115,22 @@
         </div> -->
 
       <!-- 类别和新闻图表 -->
-      <section class="split">
+      <section class="full-width-section">
         <div class="panel animate-fade-in" style="animation-delay: 0.6s">
-          <PieChart 
-            :data="overview?.top_categories_7d || []" 
-            title="近7天 Top 类别"
+          <PieChart
+            :data="overview?.top_categories_7d || []"
+            title="近7天热门类别"
             name-key="name"
             value-key="count"
           />
         </div>
         <div class="panel animate-fade-in" style="animation-delay: 0.7s">
-          <BarChart 
-            :data="overview?.top_news_7d || []" 
-            title="近7天 Top 新闻"
+          <TopNewsList
+            :data="overview?.top_news_7d || []"
+            title="近7天热门新闻"
             name-key="title"
             value-key="count"
+            :categories="overview?.top_categories_7d || []"
           />
         </div>
       </section>
@@ -141,13 +142,15 @@
 import LineChart from './charts/LineChart.vue'
 import PieChart from './charts/PieChart.vue'
 import BarChart from './charts/BarChart.vue'
+import TopNewsList from './charts/TopNewsList.vue'
 
 export default {
   name: 'AdminView',
   components: {
     LineChart,
     PieChart,
-    BarChart
+    BarChart,
+    TopNewsList
   },
   props: {
     overview: { type: Object, default: null },
@@ -494,11 +497,18 @@ export default {
 }
 
 /* 面板 */
-.split { 
-  display: grid; 
-  grid-template-columns: 1fr 1fr; 
-  gap: 20px; 
-  margin-top: 20px; 
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.full-width-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 20px;
 }
 
 .panel { 
