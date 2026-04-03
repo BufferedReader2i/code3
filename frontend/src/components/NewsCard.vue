@@ -121,6 +121,27 @@ export default {
   overflow: hidden;
 }
 
+.news-reason {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #92400e;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.news-reason .reason-icon {
+  font-size: 14px;
+}
+
+.news-reason .reason-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
 .news-footer {
   margin-top: 12px;
   font-size: 12px;

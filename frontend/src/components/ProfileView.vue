@@ -86,6 +86,45 @@
           <p>{{ profileSummary }}</p>
         </div>
 
+        <!-- AI画像解读
+        <div class="llm-profile-section animate-fade-in" style="animation-delay: 0.15s">
+          <div class="section-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 017 7h1a1 1 0 011 1v3a1 1 0 01-1 1h-1v1a2 2 0 01-2 2H5a2 2 0 01-2-2v-1H2a1 1 0 01-1-1v-3a1 1 0 011-1h1a7 7 0 017-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 012-2z"/>
+              <path d="M9 14v2"/>
+              <path d="M15 14v2"/>
+            </svg>
+            <h3>AI画像解读</h3>
+          </div>
+          <div class="llm-profile-content">
+            <div v-if="llmProfileLoading" class="llm-profile-loading">
+              <div class="loading-dots">
+                <span></span><span></span><span></span>
+              </div>
+              <span>AI正在分析您的兴趣...</span>
+            </div>
+            <div v-else-if="llmProfile" class="llm-profile-text">
+              <p>{{ llmProfile }}</p>
+              <button type="button" class="btn-regenerate" @click="generateLLMProfile" :disabled="llmProfileLoading">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 4v6h-6"/>
+                  <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+                </svg>
+                重新生成
+              </button>
+            </div>
+            <div v-else class="llm-profile-empty">
+              <p>让AI帮您分析阅读兴趣</p>
+              <button type="button" class="btn-generate" @click="generateLLMProfile" :disabled="llmProfileLoading">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 017 7h1a1 1 0 011 1v3a1 1 0 01-1 1h-1v1a2 2 0 01-2 2H5a2 2 0 01-2-2v-1H2a1 1 0 01-1-1v-3a1 1 0 011-1h1a7 7 0 017-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 012-2z"/>
+                </svg>
+                生成AI画像
+              </button>
+            </div>
+          </div>
+        </div> -->
+
         <template v-if="userProfile.categories && userProfile.categories.length">
           <div class="profile-section animate-fade-in" style="animation-delay: 0.2s">
             <div class="section-header">
@@ -170,6 +209,30 @@ export default {
     const clusterGraphNodes = ref([])
     const clusterGraphLinks = ref([])
     const clusterGraphLoading = ref(false)
+    
+    // LLM画像相关
+    const llmProfile = ref('')
+    const llmProfileLoading = ref(false)
+    
+    // 加载已保存的LLM画像
+    const loadLLMProfile = () => {
+      if (!props.userId) {
+        // 用户ID为空时清空画像
+        llmProfile.value = ''
+        return
+      }
+      const key = `llmProfile_${props.userId}`
+      const saved = localStorage.getItem(key)
+      // 无论是否有保存值，都要更新（清空或设置新值）
+      llmProfile.value = saved || ''
+    }
+    
+    // 保存LLM画像到localStorage
+    const saveLLMProfile = () => {
+      if (!props.userId || !llmProfile.value) return
+      const key = `llmProfile_${props.userId}`
+      localStorage.setItem(key, llmProfile.value)
+    }
     
     // 已删除的标签列表（会话期间）
     const deletedSubcategories = ref([])
@@ -381,6 +444,8 @@ export default {
       
       // 加载已删除的标签
       loadDeletedSubcategories()
+      // 加载已保存的LLM画像
+      loadLLMProfile()
     })
 
     onBeforeUnmount(() => {
@@ -408,8 +473,9 @@ export default {
       () => props.userId,
       (uid) => {
         if (uid) loadClusterGraph()
-        // 用户 ID 变化时重新加载已删除标签
+        // 用户 ID 变化时重新加载已删除标签和LLM画像
         loadDeletedSubcategories()
+        loadLLMProfile()
       },
       { immediate: true }
     )
@@ -428,6 +494,23 @@ export default {
     const profileSummary = computed(() => props.profileSummary)
     const profileUpdateNotice = computed(() => props.profileUpdateNotice)
     
+    // 生成LLM画像
+    async function generateLLMProfile() {
+      if (!props.userId || llmProfileLoading.value) return
+      llmProfileLoading.value = true
+      try {
+        const res = await api.getLLMProfile(props.userId)
+        llmProfile.value = res.data.llm_profile
+        // 保存到localStorage
+        saveLLMProfile()
+      } catch (err) {
+        console.error('生成LLM画像失败:', err)
+        llmProfile.value = '生成失败，请稍后重试'
+      } finally {
+        llmProfileLoading.value = false
+      }
+    }
+    
     return {
       chartRef,
       graphRef,
@@ -438,7 +521,10 @@ export default {
       deleteSubcategory,
       filteredSubcategories,
       profileSummary,
-      profileUpdateNotice
+      profileUpdateNotice,
+      llmProfile,
+      llmProfileLoading,
+      generateLLMProfile
     }
   }
 }
@@ -841,9 +927,9 @@ export default {
 }
 
 /* 空状态 */
-.profile-empty { 
-  font-size: 14px; 
-  color: #94a3b8; 
+.profile-empty {
+  font-size: 14px;
+  color: #94a3b8;
   margin-top: 12px;
   display: flex;
   align-items: center;
@@ -858,6 +944,147 @@ export default {
   height: 22px;
   color: #94a3b8;
   flex-shrink: 0;
+}
+
+/* AI画像解读 */
+.llm-profile-section {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1px solid #bbf7d0;
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.llm-profile-section .section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.llm-profile-section .section-header svg {
+  width: 22px;
+  height: 22px;
+  color: #16a34a;
+}
+
+.llm-profile-section .section-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #166534;
+}
+
+.llm-profile-content {
+  min-height: 60px;
+}
+
+.llm-profile-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.loading-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.loading-dots span {
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+.llm-profile-text p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+}
+
+.btn-regenerate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-regenerate:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.btn-regenerate svg {
+  width: 14px;
+  height: 14px;
+}
+
+.btn-regenerate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.llm-profile-empty {
+  text-align: center;
+  padding: 10px 0;
+}
+
+.llm-profile-empty p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.btn-generate {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.35);
+}
+
+.btn-generate:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(34, 197, 94, 0.4);
+}
+
+.btn-generate svg {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-generate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 @media (max-width: 768px) {

@@ -47,6 +47,26 @@ export function useAuth() {
   }
 
   function logout() {
+    // 清除LLM画像缓存（清除所有用户的画像缓存）
+    const keysToRemove = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith('llmProfile_')) {
+        keysToRemove.push(key)
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key))
+    
+    // 清除已删除标签缓存
+    const tagKeysToRemove = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith('deletedSubcategories_')) {
+        tagKeysToRemove.push(key)
+      }
+    }
+    tagKeysToRemove.forEach(key => localStorage.removeItem(key))
+    
     token.value = ''
     currentUser.value = { username: '', role: 'user' }
     localStorage.removeItem('token')

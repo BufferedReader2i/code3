@@ -23,6 +23,9 @@
         <button type="button" class="nav-tab" :class="{ active: currentPage === 'search' }" @click="$emit('navigate', 'search')">
           <span>搜索发现</span>
         </button>
+        <!-- <button type="button" class="nav-tab" :class="{ active: currentPage === 'chat-recommend' }" @click="$emit('navigate', 'chat-recommend')">
+          <span>智能对话</span>
+        </button> -->
         <button type="button" class="nav-tab" :class="{ active: currentPage === 'profile' }" @click="$emit('navigate', 'profile')">
           <span>个人中心</span>
         </button>

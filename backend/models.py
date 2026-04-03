@@ -22,6 +22,7 @@ class AuthResponse(BaseModel):
 # ----- 推荐等 -----
 class RecommendRequest(BaseModel):
     user_id: str
+    with_reasons: bool = False  # 是否生成推荐理由
 
 class ClassifyRequest(BaseModel):
     text: str
@@ -62,6 +63,7 @@ class NewsItem(BaseModel):
     abstract: str
     score: Optional[float] = None
     tag: str = ""
+    reason: str = ""  # LLM生成的推荐理由
 
 class RecommendResponse(BaseModel):
     user_id: str
@@ -97,6 +99,13 @@ class UserProfileResponse(BaseModel):
     categories: List[CategoryItem]
     subcategories: List[CategoryItem] = []
     history_count: int
+
+
+class LLMProfileResponse(BaseModel):
+    """LLM生成的用户画像响应"""
+    user_id: str
+    llm_profile: str
+    generated_at: str
 
 
 class ExampleUsersResponse(BaseModel):

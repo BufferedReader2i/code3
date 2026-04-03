@@ -47,6 +47,14 @@ export const api = {
     return axios.get(`${API_BASE}/user/profile`, { params: { user_id: userId } })
   },
 
+  getLLMProfile(userId) {
+    return axios.get(`${API_BASE}/user/profile/llm`, { params: { user_id: userId }, headers: authHeaders() })
+  },
+
+  getRecommendationsWithReasons(userId) {
+    return axios.post(`${API_BASE}/recommend`, { user_id: userId, with_reasons: true })
+  },
+
   deleteUserSubcategory(userId, subcategoryName) {
     return axios.delete(`${API_BASE}/user/profile/subcategory/${encodeURIComponent(subcategoryName)}`, { params: { user_id: userId }, headers: authHeaders() })
   },
@@ -118,6 +126,102 @@ export const api = {
 
   adminClusterRebuild({ k = 6, user_limit = 3000 } = {}) {
     return axios.post(`${API_BASE}/admin/cluster/rebuild`, null, { params: { k, user_limit }, headers: authHeaders() })
+  },
+
+  // ======== LLM对话式推荐API（新增） ========
+  getLLMStatus() {
+    return axios.get(`${API_BASE}/llm/status`)
+  },
+
+  llmChat(message, userId, history = []) {
+    return axios.post(`${API_BASE}/llm/chat`, {
+      message: message,
+      user_id: userId,
+      history: history || []
+    }, { headers: authHeaders() })
+  },
+
+  clearLLMHistory() {
+    return axios.post(`${API_BASE}/llm/chat/clear`, {}, { headers: authHeaders() })
+  },
+
+  // 流式对话API - 使用SSE (Server-Sent Events)
+  llmChatStream(message, userId, onToken, onRecommendations, onDone, onError) {
+    const token = localStorage.getItem('token')
+    const url = `${API_BASE}/llm/chat/stream`
+    
+    // 使用fetch API支持流式读取
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: JSON.stringify({
+        message: message,
+        user_id: userId
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      
+      function read() {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            if (buffer.trim()) {
+              // 处理剩余数据
+              processLine(buffer)
+            }
+            if (onDone) onDone()
+            return
+          }
+          
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || '' // 保留未完成的行
+          
+          for (const line of lines) {
+            processLine(line)
+          }
+          
+          read()
+        }).catch(err => {
+          if (onError) onError(err.message)
+        })
+      }
+      
+      function processLine(line) {
+        if (!line.trim()) return
+        
+        // SSE格式: data: {...}
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6))
+            if (data.type === 'token' && onToken) {
+              onToken(data.content)
+            } else if (data.type === 'recommendations' && onRecommendations) {
+              onRecommendations(data.content)
+            } else if (data.type === 'done') {
+              // 完成信号在reader结束时处理
+            } else if (data.type === 'error' && onError) {
+              onError(data.content)
+            }
+          } catch (e) {
+            console.error('Parse SSE error:', e)
+          }
+        }
+      }
+      
+      read()
+    })
+    .catch(err => {
+      if (onError) onError(err.message)
+    })
   }
 }
 

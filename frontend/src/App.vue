@@ -66,6 +66,10 @@
         @search="doSearch"
         @open="openNewsDetail"
       />
+      <ChatRecommendView
+        v-else-if="currentPage === 'chat-recommend'"
+        @open-detail="openNewsDetail"
+      />
       <ProfileView
         v-else-if="currentPage === 'profile'"
         :user-id="currentUser.username"
@@ -143,6 +147,7 @@ import AdminView from './components/AdminView.vue'
 import NewsManagementView from './components/NewsManagementView.vue'
 import FavoritesView from './components/FavoritesView.vue'
 import ChangePasswordView from './components/ChangePasswordView.vue'
+import ChatRecommendView from './components/ChatRecommendView.vue'
 
 export default {
   name: 'App',
@@ -157,7 +162,8 @@ export default {
     AdminView,
     NewsManagementView,
     FavoritesView,
-    ChangePasswordView
+    ChangePasswordView,
+    ChatRecommendView
   },
   setup() {
     // 异步任务队列
@@ -516,7 +522,7 @@ export default {
       error.value = ''
       recommendations.value = [] // 先清空，让界面立即进入加载状态
       try {
-        // 不再在此处获取用户画像，画像已存储在数据库中，换一批时直接获取推荐
+        // 获取推荐列表（不生成理由）
         const res = await api.getInitialRecommendations(uid)
         const list = res.data?.recommendations
         recommendations.value = Array.isArray(list) ? [...list] : []

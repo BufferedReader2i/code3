@@ -608,7 +608,8 @@ class RecommendationService:
         random.shuffle(final_ids)
         return final_ids
 
-    def get_initial_recommendations(self, user_id):
+    def get_initial_recommendations(self, user_id, with_reasons=False):
+        """获取推荐列表，可选生成推荐理由"""
         if USE_MIND:
             candidates = self._get_candidates_for_user(user_id)
             id_scores = self._recommend_with_combined_history(user_id, candidates, top_n=500, return_scores=True)
@@ -616,29 +617,49 @@ class RecommendationService:
             combined = self._get_combined_history(user_id)
             latest_id = combined[-1] if combined else None
             final_ids = self._build_final_10(boosted, latest_news_id=latest_id)
-            return [
+            
+            recommendations = [
                 {"id": nid, "title": self.news_info.get(nid, {}).get("title", "N/A"), "category": self.news_info.get(nid, {}).get("category", "N/A"), "abstract": self.news_info.get(nid, {}).get("abstract", "")}
                 for nid in final_ids
             ]
-        if user_id not in self.rec.user_history:
-            return []
-        history = self.rec.user_history[user_id][-20:]
-        candidates = [n for n in self.news_list if n in self.rec.news_data]
-        hist_texts = self.rec._encode_texts([self.rec.news_data[h]["text"] for h in history])
-        hist_ids = torch.tensor([self.rec.news_data[h]["idx"] for h in history])
-        hist_entities = self.rec._get_entity_embeds([self.rec.news_data[h]["entities"] for h in history])
-        cand_texts = self.rec._encode_texts([self.rec.news_data[c]["text"] for c in candidates])
-        cand_ids = torch.tensor([self.rec.news_data[c]["idx"] for c in candidates])
-        cand_entities = self.rec._get_entity_embeds([self.rec.news_data[c]["entities"] for c in candidates])
-        with torch.no_grad():
-            scores = self.rec.model(hist_texts, hist_ids, hist_entities, cand_texts, cand_ids, cand_entities)
-        ranked = sorted(zip(candidates, scores.tolist()), key=lambda x: x[1], reverse=True)[:30]
-        rec_ids = [nid for nid, _ in ranked]
-        rec_ids = random.sample(rec_ids, min(10, len(rec_ids)))
-        return [
-            {"id": nid, "title": self.news_info.get(nid, {}).get("title", "N/A"), "category": self.news_info.get(nid, {}).get("category", "N/A"), "abstract": self.news_info.get(nid, {}).get("abstract", "N/A")}
-            for nid in rec_ids
-        ]
+        else:
+            if user_id not in self.rec.user_history:
+                return []
+            history = self.rec.user_history[user_id][-20:]
+            candidates = [n for n in self.news_list if n in self.rec.news_data]
+            hist_texts = self.rec._encode_texts([self.rec.news_data[h]["text"] for h in history])
+            hist_ids = torch.tensor([self.rec.news_data[h]["idx"] for h in history])
+            hist_entities = self.rec._get_entity_embeds([self.rec.news_data[h]["entities"] for h in history])
+            cand_texts = self.rec._encode_texts([self.rec.news_data[c]["text"] for c in candidates])
+            cand_ids = torch.tensor([self.rec.news_data[c]["idx"] for c in candidates])
+            cand_entities = self.rec._get_entity_embeds([self.rec.news_data[c]["entities"] for c in candidates])
+            with torch.no_grad():
+                scores = self.rec.model(hist_texts, hist_ids, hist_entities, cand_texts, cand_ids, cand_entities)
+            ranked = sorted(zip(candidates, scores.tolist()), key=lambda x: x[1], reverse=True)[:30]
+            rec_ids = [nid for nid, _ in ranked]
+            rec_ids = random.sample(rec_ids, min(10, len(rec_ids)))
+            recommendations = [
+                {"id": nid, "title": self.news_info.get(nid, {}).get("title", "N/A"), "category": self.news_info.get(nid, {}).get("category", "N/A"), "abstract": self.news_info.get(nid, {}).get("abstract", "N/A")}
+                for nid in rec_ids
+            ]
+        
+        # 如果需要生成推荐理由
+        if with_reasons and recommendations:
+            try:
+                from backend.llm_service import get_llm_service
+                llm = get_llm_service()
+                user_profile = self.get_user_profile(user_id)
+                
+                for rec in recommendations:
+                    try:
+                        reason = llm.generate_recommend_reason(rec, user_profile)
+                        rec["reason"] = reason
+                    except Exception:
+                        rec["reason"] = ""
+            except Exception:
+                pass
+        
+        return recommendations
 
     def classify_text(self, text):
         if self._use_distilbert and self._clf_tokenizer and self._clf_model:

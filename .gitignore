@@ -4,6 +4,7 @@ plans/
 node_modules/
 # Python 缓存与编译文件
 __pycache__/
+lora_training/
 *.py[cod]
 *$py.class
 
