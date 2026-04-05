@@ -554,6 +554,7 @@ export default {
         selectedNews.value = {
           ...news,
           subcategory: detail.subcategory || news.subcategory || '',
+          body: detail.body || news.body || '',
           like_count: detail.like_count || 0,
           user_liked: detail.user_liked || false
         }

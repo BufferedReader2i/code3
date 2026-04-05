@@ -174,7 +174,7 @@ class RecommendationService:
 
     def _load_news_from_db(self, conn):
         with conn.cursor() as cur:
-            cur.execute("SELECT news_id, category, subcategory, title, abstract FROM news")
+            cur.execute("SELECT news_id, category, subcategory, title, abstract, body FROM news")
             for row in cur.fetchall():
                 nid = row["news_id"]
                 self.news_info[nid] = {
@@ -182,6 +182,7 @@ class RecommendationService:
                     "subcategory": (row.get("subcategory") or "").strip() or "N/A",
                     "title": (row["title"] or "").strip() or nid,
                     "abstract": (row["abstract"] or "").strip(),
+                    "body": (row.get("body") or "").strip(),
                 }
                 self.news_list.append(nid)
 
@@ -193,7 +194,8 @@ class RecommendationService:
                 "category": d.get("category", "N/A"),
                 "subcategory": d.get("subcategory", "N/A"),
                 "title": title_str or nid,
-                "abstract": "",
+                "abstract": d.get("abstract", ""),
+                "body": d.get("body", ""),
             }
             self.news_list.append(nid)
 
@@ -1327,7 +1329,7 @@ class RecommendationService:
             if conn:
                 try:
                     with conn.cursor() as cur:
-                        cur.execute("SELECT url, entity_ids, subcategory FROM news WHERE news_id=%s", (news_id,))
+                        cur.execute("SELECT url, entity_ids, subcategory, body FROM news WHERE news_id=%s", (news_id,))
                         row = cur.fetchone()
                     if row:
                         url = row.get("url") or ""
@@ -1341,6 +1343,8 @@ class RecommendationService:
                                 entity_ids = []
                         if not info.get("subcategory") and row.get("subcategory"):
                             info["subcategory"] = row.get("subcategory")
+                        if not info.get("body") and row.get("body"):
+                            info["body"] = row.get("body")
                 finally:
                     conn.close()
             # 获取点赞数和用户点赞状态
@@ -1350,6 +1354,7 @@ class RecommendationService:
                 "news_id": news_id,
                 "title": info.get("title") or news_id,
                 "abstract": info.get("abstract") or "",
+                "body": info.get("body") or "",
                 "category": info.get("category") or "N/A",
                 "subcategory": info.get("subcategory") or "N/A",
                 "url": url,
@@ -1363,7 +1368,7 @@ class RecommendationService:
         try:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT news_id, title, abstract, category, subcategory, url, entity_ids FROM news WHERE news_id=%s",
+                    "SELECT news_id, title, abstract, body, category, subcategory, url, entity_ids FROM news WHERE news_id=%s",
                     (news_id,),
                 )
                 row = cur.fetchone()
@@ -1384,6 +1389,7 @@ class RecommendationService:
                 "news_id": row["news_id"],
                 "title": (row.get("title") or "").strip() or row["news_id"],
                 "abstract": (row.get("abstract") or "").strip(),
+                "body": (row.get("body") or "").strip(),
                 "category": row.get("category") or "N/A",
                 "subcategory": (row.get("subcategory") or "").strip() or "N/A",
                 "url": row.get("url") or "",

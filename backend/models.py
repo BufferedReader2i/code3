@@ -195,6 +195,7 @@ class NewsDetailResponse(BaseModel):
     news_id: str
     title: str
     abstract: str
+    body: str = ""
     category: str
     subcategory: str
     url: str = ""

@@ -9,16 +9,18 @@
         </div>
         <h1 class="detail-title">{{ news.title }}</h1>
         <p v-if="news.abstract" class="detail-abstract">{{ news.abstract }}</p>
+        <pre v-if="news.body" class="detail-body">{{ news.body }}</pre>
+        <p v-else class="detail-no-body">暂无正文 (body: {{ news.body }})</p>
         
         <div class="detail-actions">
-          <button 
-            type="button" 
-            class="btn-like" 
+          <button
+            type="button"
+            class="btn-like"
             :class="{ liked: userLiked }"
             @click="toggleLike"
             :disabled="likeLoading"
           >
-            <span class="like-icon">{{ userLiked ? '❤️' : '🤍' }}</span>
+            <span class="like-icon">{{ userLiked ? '👍' : '👍' }}</span>
             <span class="like-count">{{ likeCount }}</span>
           </button>
         </div>
@@ -97,7 +99,7 @@ export default {
 <style scoped>
 .detail-main {
   padding: 24px 20px;
-  max-width: 1100px;
+  max-width: 800px;
   margin: 0 auto;
   box-sizing: border-box;
 }
@@ -159,20 +161,35 @@ export default {
   font-weight: 600;
   color: #1e293b;
   line-height: 1.4;
-  margin-bottom: 16px;
+  margin-bottom: 32px;
 }
 
 .detail-abstract {
-  font-size: 15px;
-  color: #475569;
+  font-size: 1.25rem;
+  color: #000;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  margin-bottom: 20px;
+}
+
+.detail-body {
+  font-size: 1.25rem;
+  color: #000;
   line-height: 1.6;
   white-space: pre-wrap;
+  margin-bottom: 20px;
+}
+
+.detail-no-body {
+  font-size: 0.875rem;
+  color: #999;
   margin-bottom: 20px;
 }
 
 .detail-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 16px;
   margin-bottom: 16px;
   padding: 16px 0;
