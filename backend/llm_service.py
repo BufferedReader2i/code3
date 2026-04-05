@@ -95,22 +95,24 @@ class LLMService:
                         "temperature": 0.7,
                         "num_predict": 512  # 限制输出长度
                     },
-                    # Qwen3 关闭思考模式
-                    "think": False
+                    # removed think param
                 },
                 timeout=60
             )
             if response.status_code == 200:
                 content = response.json().get("message", {}).get("content", "")
-                # 过滤掉思考标签内容（以防万一）
+                if not content:
+                    return "生成内容为空，请确保Ollama服务正常运行。"
                 import re
                 content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
                 return content.strip()
-            return f"Error: {response.status_code}"
+            return f"LLM请求失败({response.status_code}): {response.text[:80]}"
         except requests.exceptions.Timeout:
-            return "抱歉，生成超时，请稍后重试。"
+            return "生成超时，请稍后重试。"
+        except requests.exceptions.ConnectionError:
+            return "无法连接到LLM服务，请确保Ollama已启动。"
         except Exception as e:
-            return f"抱歉，服务暂时不可用: {str(e)}"
+            return f"服务错误: {str(e)[:80]}"
     
     def chat(self, user_id: str, message: str, system_prompt: Optional[str] = None) -> str:
         """带上下文的对话"""
@@ -477,6 +479,158 @@ class LLMService:
             reason = self.generate_recommend_reason(news, user_profile)
             reasons.append(reason)
         return reasons
+    
+    def generate_enhanced_user_profile(self, user_profile: Dict, recent_history: List[Dict], behavior_stats: Dict = None) -> Dict:
+        """
+        生成增强版用户画像，包含画像概述、点击原因推理和潜在需求推理
+        """
+        import re
+        
+        categories = user_profile.get("categories", [])
+        cat_info = []
+        for cat in categories[:5]:
+            name = cat.get("name", "未知")
+            score = cat.get("score", 0)
+            if score > 0:
+                cat_info.append(f"{name}({int(score * 100)}%)")
+        
+        subcategories = user_profile.get("subcategories", [])
+        subcat_names = [s.get("name", "") for s in subcategories[:5] if s.get("name")]
+        
+        if not cat_info:
+            return {"summary": "您还没有足够的阅读记录，多浏览一些新闻后我们可以更好地了解您的兴趣。", "click_reasons": [], "potential_needs": []}
+        
+        recent_titles_with_cat = []
+        for item in recent_history[:8]:
+            title = item.get("title", "")
+            category = item.get("category", "")
+            if title:
+                recent_titles_with_cat.append(f"《{title[:25]}》[{category}]")
+        
+        liked_titles = []
+        favorited_titles = []
+        if behavior_stats:
+            liked_titles = [t[:25] for t in behavior_stats.get("liked", [])[:3]]
+            favorited_titles = [t[:25] for t in behavior_stats.get("favorited", [])[:3]]
+        
+        prompt = f"""根据用户的阅读数据，分析并生成结构化的用户画像。
+
+用户兴趣分布: {', '.join(cat_info)}
+最近关注的话题: {', '.join(subcat_names[:4]) if subcat_names else '暂无'}
+最近浏览的新闻: {'; '.join(recent_titles_with_cat[:5]) if recent_titles_with_cat else '暂无'}
+点赞过的内容: {'; '.join(liked_titles) if liked_titles else '暂无'}
+收藏过的内容: {'; '.join(favorited_titles) if favorited_titles else '暂无'}
+
+请按以下格式输出（纯文本，不要markdown）：
+
+【画像概述】
+用30-50字概括用户的主要兴趣领域和阅读偏好
+
+【点击原因推理】
+分析用户点击某些新闻的深层原因，1-2条
+格式：用户点击这篇[类别]新闻，是因为[具体原因]，而不是[表面原因]
+
+【潜在需求推理】
+基于连续行为推断用户可能的潜在需求，1-2条
+格式：用户[行为描述]，可能[潜在需求]
+
+要求：推理要有依据，语言简洁，如果数据不足以推理某项输出'数据不足'"""
+
+        result = self.generate(prompt)
+        # 清理所有markdown标记
+        result = re.sub(r'^#{1,6}\s*', '', result, flags=re.MULTILINE)  # 标题#
+        result = re.sub(r'\*\*(.+?)\*\*', r'\1', result)  # 加粗**
+        result = re.sub(r'\*(.+?)\*', r'\1', result)  # 斜体*
+        result = re.sub(r'~~(.+?)~~', r'\1', result)  # 删除线~~
+        result = re.sub(r'`(.+?)`', r'\1', result)  # 行内代码`
+        result = re.sub(r'^\s*[-*+]\s+', '', result, flags=re.MULTILINE)  # 列表项
+        result = re.sub(r'^\s*\d+\.\s+', '', result, flags=re.MULTILINE)  # 数字列表
+        result = result.strip()
+        
+        summary = ""
+        click_reasons = []
+        potential_needs = []
+        
+        lines = result.split('\n')
+        current_section = None
+        current_content = []
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            # 跳过可能的标题关键词行
+            if any(kw in line for kw in ['画像概述', '点击原因', '潜在需求']) and len(line) < 15:
+                if '画像概述' in line:
+                    if current_section == 'summary' and current_content:
+                        summary = ' '.join(current_content).strip()
+                    current_section = 'summary'
+                    current_content = []
+                elif '点击原因' in line:
+                    if current_section == 'summary' and current_content:
+                        summary = ' '.join(current_content).strip()
+                    elif current_section == 'click' and current_content:
+                        click_reasons.append(' '.join(current_content).strip())
+                    current_section = 'click'
+                    current_content = []
+                elif '潜在需求' in line:
+                    if current_section == 'click' and current_content:
+                        click_reasons.append(' '.join(current_content).strip())
+                    current_section = 'potential'
+                    current_content = []
+                continue
+            # 处理内容行
+            if current_section and '数据不足' not in line and len(line) > 5:
+                current_content.append(line)
+        
+        if current_section == 'potential' and current_content:
+            potential_needs.append(' '.join(current_content).strip())
+        elif current_section == 'summary' and current_content:
+            summary = ' '.join(current_content).strip()
+        
+        # 限制长度
+        if len(summary) > 100:
+            summary = summary[:100] + "..."
+        
+        # 过滤无效内容
+        click_reasons = [r for r in click_reasons if len(r) > 10 and '数据不足' not in r][:2]
+        potential_needs = [r for r in potential_needs if len(r) > 10 and '数据不足' not in r][:2]
+        
+        return {
+            "summary": summary or "根据您的阅读记录，您对多个领域都有所关注。",
+            "click_reasons": click_reasons,
+            "potential_needs": potential_needs
+        }
+    
+    def generate_on_demand_reason(self, news: Dict, user_profile: Dict) -> str:
+        """按需生成单个新闻的推荐理由"""
+        news_title = news.get("title", "")[:50]
+        news_category = news.get("category", "综合")
+        news_abstract = news.get("abstract", "")[:100]
+        
+        categories = user_profile.get("categories", [])
+        user_interests = [cat.get("name", "") for cat in categories[:3] if cat.get("score", 0) > 0.05]
+        subcategories = user_profile.get("subcategories", [])
+        user_topics = [s.get("name", "") for s in subcategories[:3] if s.get("name")]
+        
+        category_match = news_category in user_interests
+        
+        if category_match:
+            prompt = f"""用户对{news_category}很感兴趣，请用简短一句话（15-25字）说明为什么推荐这条新闻：
+新闻标题: {news_title}
+要求：只输出推荐理由，不要引号。例如："符合您对体育赛事的关注" """
+        else:
+            prompt = f"""请用简短一句话（15-25字）说明为什么推荐这条新闻：
+新闻标题: {news_title}
+用户兴趣: {', '.join(user_interests) if user_interests else '综合'}
+用户关注话题: {', '.join(user_topics[:3]) if user_topics else '暂无'}
+要求：只输出推荐理由，不要引号。例如："热门推荐"或"为您推荐新内容" """
+
+        result = self.generate(prompt)
+        result = result.strip().strip('"').strip('"').strip()
+        if len(result) > 35:
+            result = result[:35]
+        return result
 
 
 # 全局LLM服务实例

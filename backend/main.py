@@ -16,7 +16,8 @@ from backend.models import (
     NewsDetailResponse, NewsSearchResponse,
     UserClusterResponse, AdminClusterRebuildResponse,
     ClusterGraphResponse,
-    LLMProfileResponse,
+    LLMProfileResponse, EnhancedLLMProfileResponse,
+    NewsReasonRequest, NewsReasonResponse,
 )
 from backend.services import RecommendationService
 from backend.auth import verify_password, hash_password, create_token, get_user_from_token
@@ -259,6 +260,122 @@ async def get_llm_user_profile(user_id: str, current=Depends(get_current_user)):
     return LLMProfileResponse(
         user_id=user_id,
         llm_profile=llm_profile,
+        generated_at=datetime.utcnow().isoformat() + "Z"
+    )
+
+
+@app.get("/api/user/profile/llm/enhanced", response_model=EnhancedLLMProfileResponse)
+async def get_enhanced_llm_user_profile(user_id: str, current=Depends(get_current_user)):
+    """获取增强版LLM用户画像，包含点击原因推理和潜在需求推理"""
+    from datetime import datetime
+    
+    # 检查LLM服务是否可用
+    llm_status = check_llm_available()
+    if not llm_status.get("ready"):
+        raise HTTPException(status_code=503, detail="LLM服务暂不可用")
+    
+    # 获取用户画像
+    profile = service.get_user_profile(user_id)
+    
+    # 获取最近浏览历史
+    history_items = service.get_user_history_items(user_id, limit=15)
+    
+    # 获取用户行为事件
+    user_events = service.get_user_events(user_id, limit=100)
+    
+    # 统计用户行为
+    news_latest_state = {}
+    for event in reversed(user_events):
+        event_type = event.get("event_type", "")
+        news_id = event.get("news_id", "")
+        
+        if news_id not in news_latest_state:
+            news_latest_state[news_id] = {"like": False, "favorite": False, "dislike": False, "not_interested": False}
+        
+        if event_type == "like":
+            news_latest_state[news_id]["like"] = True
+        elif event_type == "unlike":
+            news_latest_state[news_id]["like"] = False
+        elif event_type == "favorite":
+            news_latest_state[news_id]["favorite"] = True
+        elif event_type == "unfavorite":
+            news_latest_state[news_id]["favorite"] = False
+        elif event_type == "dislike":
+            news_latest_state[news_id]["dislike"] = True
+        elif event_type == "undislike":
+            news_latest_state[news_id]["dislike"] = False
+        elif event_type == "not_interested":
+            news_latest_state[news_id]["not_interested"] = True
+        elif event_type == "remove_not_interested":
+            news_latest_state[news_id]["not_interested"] = False
+    
+    behavior_stats = {"liked": [], "favorited": [], "disliked": [], "not_interested": []}
+    
+    for news_id, state in news_latest_state.items():
+        news_info = service.news_info.get(news_id) or service.rec.news_data.get(news_id, {})
+        title = news_info.get("title", news_id)
+        if isinstance(title, list):
+            title = " ".join(title) if title else news_id
+        
+        if state["like"] and len(behavior_stats["liked"]) < 5:
+            behavior_stats["liked"].append(title[:50] if title else news_id)
+        if state["favorite"] and len(behavior_stats["favorited"]) < 5:
+            behavior_stats["favorited"].append(title[:50] if title else news_id)
+        if state["dislike"] and len(behavior_stats["disliked"]) < 3:
+            behavior_stats["disliked"].append(title[:50] if title else news_id)
+        if state["not_interested"] and len(behavior_stats["not_interested"]) < 3:
+            behavior_stats["not_interested"].append(title[:50] if title else news_id)
+    
+    # 调用增强版LLM生成画像
+    llm = get_llm_service()
+    enhanced_profile = llm.generate_enhanced_user_profile(profile, history_items, behavior_stats)
+    
+    return EnhancedLLMProfileResponse(
+        user_id=user_id,
+        summary=enhanced_profile.get("summary", ""),
+        click_reasons=enhanced_profile.get("click_reasons", []),
+        potential_needs=enhanced_profile.get("potential_needs", []),
+        generated_at=datetime.utcnow().isoformat() + "Z"
+    )
+
+
+@app.post("/api/news/reason", response_model=NewsReasonResponse)
+async def get_news_recommend_reason(req: NewsReasonRequest, current=Depends(get_current_user)):
+    """按需生成单个新闻的推荐理由（用户点击按钮后调用）"""
+    from datetime import datetime
+    
+    # 检查LLM服务是否可用
+    llm_status = check_llm_available()
+    if not llm_status.get("ready"):
+        raise HTTPException(status_code=503, detail="LLM服务暂不可用")
+    
+    # 获取新闻详情
+    news_info = service.news_info.get(req.news_id) or service.rec.news_data.get(req.news_id, {})
+    if not news_info:
+        raise HTTPException(status_code=404, detail="新闻不存在")
+    
+    title = news_info.get("title", req.news_id)
+    if isinstance(title, list):
+        title = " ".join(title) if title else req.news_id
+    
+    news = {
+        "id": req.news_id,
+        "title": title,
+        "category": news_info.get("category", "综合"),
+        "abstract": news_info.get("abstract", "")
+    }
+    
+    # 获取用户画像
+    profile = service.get_user_profile(req.user_id)
+    
+    # 调用LLM生成推荐理由
+    llm = get_llm_service()
+    reason = llm.generate_on_demand_reason(news, profile)
+    
+    return NewsReasonResponse(
+        news_id=req.news_id,
+        title=title[:100] if title else req.news_id,
+        reason=reason,
         generated_at=datetime.utcnow().isoformat() + "Z"
     )
 

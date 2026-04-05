@@ -51,6 +51,14 @@ export const api = {
     return axios.get(`${API_BASE}/user/profile/llm`, { params: { user_id: userId }, headers: authHeaders() })
   },
 
+  getEnhancedLLMProfile(userId) {
+    return axios.get(`${API_BASE}/user/profile/llm/enhanced`, { params: { user_id: userId }, headers: authHeaders() })
+  },
+
+  getNewsRecommendReason(userId, newsId) {
+    return axios.post(`${API_BASE}/news/reason`, { user_id: userId, news_id: newsId }, { headers: authHeaders() })
+  },
+
   getRecommendationsWithReasons(userId) {
     return axios.post(`${API_BASE}/recommend`, { user_id: userId, with_reasons: true })
   },

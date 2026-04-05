@@ -1,5 +1,7 @@
 # 忽略数据与计划文件夹
 datal/
+data/
+reports/
 plans/
 node_modules/
 # Python 缓存与编译文件

@@ -5,6 +5,19 @@
     </div>
     <h3>{{ news.title }}</h3>
     <p v-if="news.abstract">{{ news.abstract }}</p>
+    
+    <!-- 推荐理由展示区域 -->
+    <div v-if="showReason || reasonLoading" class="news-reason" :class="{ loading: reasonLoading }">
+      <template v-if="reasonLoading">
+        <span class="reason-icon">⟳</span>
+        <span class="reason-text">正在生成推荐理由...</span>
+      </template>
+      <template v-else-if="showReason">
+        <span class="reason-icon">💡</span>
+        <span class="reason-text">{{ recommendReason }}</span>
+      </template>
+    </div>
+    
     <div class="news-footer">
       <span class="id">ID: {{ news.id }}</span>
       <div class="actions" @click.stop>
@@ -12,22 +25,33 @@
         <button type="button" class="btn-act dislike" :class="{ done: feedback.dislike }" @click="onDislike"> {{ feedback.dislike ? '已踩' : '踩' }} </button>
         <button type="button" class="btn-act fav" :class="{ done: feedback.fav }" @click="onFav"> {{ feedback.fav ? '已收藏' : '收藏' }} </button>
         <button type="button" class="btn-act ni" :class="{ done: feedback.ni }" @click="onNi"> {{ feedback.ni ? '已标记' : '不感兴趣' }} </button>
+        
+        <!-- 推荐理由按钮 (暂时禁用)
+        <button v-if="!showReason && !reasonLoading" type="button" class="btn-act reason-btn" @click="onShowReason" title="查看推荐理由">
+          💡
+        </button>
+        -->
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
+import { api } from '../api'
 
 export default {
   name: 'NewsCard',
   props: {
-    news: { type: Object, required: true }
+    news: { type: Object, required: true },
+    userId: { type: String, default: '' }
   },
   emits: ['click', 'like', 'unlike', 'dislike', 'undislike', 'favorite', 'unfavorite', 'not-interested', 'remove-not-interested'],
   setup(props, { emit }) {
     const feedback = reactive({ like: false, dislike: false, fav: false, ni: false })
+    const showReason = ref(false)
+    const reasonLoading = ref(false)
+    const recommendReason = ref('')
     
     function onLike() {
       if (feedback.like) {
@@ -69,7 +93,23 @@ export default {
       }
     }
     
-    return { feedback, onLike, onDislike, onFav, onNi }
+    async function onShowReason() {
+      if (!props.userId || reasonLoading.value) return
+      reasonLoading.value = true
+      try {
+        const res = await api.getNewsRecommendReason(props.userId, props.news.id)
+        recommendReason.value = res.data.reason
+        showReason.value = true
+      } catch (err) {
+        console.error('生成推荐理由失败:', err)
+        recommendReason.value = '生成失败，请稍后重试'
+        showReason.value = true
+      } finally {
+        reasonLoading.value = false
+      }
+    }
+    
+    return { feedback, showReason, reasonLoading, recommendReason, onLike, onDislike, onFav, onNi, onShowReason }
   }
 }
 </script>
@@ -140,6 +180,19 @@ export default {
 .news-reason .reason-text {
   flex: 1;
   line-height: 1.4;
+}
+
+.news-reason.loading {
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  color: #0369a1;
+}
+
+.news-reason.loading .reason-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .news-footer {

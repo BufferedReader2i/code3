@@ -108,6 +108,29 @@ class LLMProfileResponse(BaseModel):
     generated_at: str
 
 
+class EnhancedLLMProfileResponse(BaseModel):
+    """增强版LLM用户画像响应，包含推理"""
+    user_id: str
+    summary: str
+    click_reasons: List[str] = []
+    potential_needs: List[str] = []
+    generated_at: str
+
+
+class NewsReasonRequest(BaseModel):
+    """按需生成推荐理由请求"""
+    user_id: str
+    news_id: str
+
+
+class NewsReasonResponse(BaseModel):
+    """按需生成推荐理由响应"""
+    news_id: str
+    title: str
+    reason: str
+    generated_at: str
+
+
 class ExampleUsersResponse(BaseModel):
     user_ids: List[str]
 

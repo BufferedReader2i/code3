@@ -86,7 +86,7 @@
           <p>{{ profileSummary }}</p>
         </div>
 
-        <!-- AI画像解读
+        <!-- AI画像解读 (暂时禁用)
         <div class="llm-profile-section animate-fade-in" style="animation-delay: 0.15s">
           <div class="section-header">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -103,8 +103,18 @@
               </div>
               <span>AI正在分析您的兴趣...</span>
             </div>
-            <div v-else-if="llmProfile" class="llm-profile-text">
-              <p>{{ llmProfile }}</p>
+            <div v-else-if="llmProfileSummary || llmPotentialNeeds.length" class="llm-profile-enhanced">
+              <div v-if="llmProfileSummary" class="llm-profile-item llm-profile-summary">
+                <p class="llm-item-text">{{ llmProfileSummary }}</p>
+              </div>
+              <div v-if="llmPotentialNeeds.length" class="llm-profile-item llm-profile-needs">
+                <ul class="llm-reason-list">
+                  <li v-for="(need, idx) in llmPotentialNeeds" :key="'need-'+idx">
+                    <span class="reason-icon">🎯</span>
+                    <span>{{ need }}</span>
+                  </li>
+                </ul>
+              </div>
               <button type="button" class="btn-regenerate" @click="generateLLMProfile" :disabled="llmProfileLoading">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M23 4v6h-6"/>
@@ -123,7 +133,8 @@
               </button>
             </div>
           </div>
-        </div> -->
+        </div>
+        -->
 
         <template v-if="userProfile.categories && userProfile.categories.length">
           <div class="profile-section animate-fade-in" style="animation-delay: 0.2s">
@@ -210,28 +221,42 @@ export default {
     const clusterGraphLinks = ref([])
     const clusterGraphLoading = ref(false)
     
-    // LLM画像相关
+    // LLM画像相关 - 增强版
     const llmProfile = ref('')
+    const llmProfileSummary = ref('')
+    const llmClickReasons = ref([])
+    const llmPotentialNeeds = ref([])
     const llmProfileLoading = ref(false)
     
     // 加载已保存的LLM画像
     const loadLLMProfile = () => {
       if (!props.userId) {
-        // 用户ID为空时清空画像
         llmProfile.value = ''
+        llmProfileSummary.value = ''
+        llmClickReasons.value = []
+        llmPotentialNeeds.value = []
         return
       }
-      const key = `llmProfile_${props.userId}`
-      const saved = localStorage.getItem(key)
-      // 无论是否有保存值，都要更新（清空或设置新值）
-      llmProfile.value = saved || ''
+      // 加载增强版画像
+      const keySummary = `llmProfileSummary_${props.userId}`
+      const keyClickReasons = `llmClickReasons_${props.userId}`
+      const keyPotentialNeeds = `llmPotentialNeeds_${props.userId}`
+      
+      llmProfileSummary.value = localStorage.getItem(keySummary) || ''
+      llmClickReasons.value = JSON.parse(localStorage.getItem(keyClickReasons) || '[]')
+      llmPotentialNeeds.value = JSON.parse(localStorage.getItem(keyPotentialNeeds) || '[]')
     }
     
     // 保存LLM画像到localStorage
     const saveLLMProfile = () => {
-      if (!props.userId || !llmProfile.value) return
-      const key = `llmProfile_${props.userId}`
-      localStorage.setItem(key, llmProfile.value)
+      if (!props.userId) return
+      const keySummary = `llmProfileSummary_${props.userId}`
+      const keyClickReasons = `llmClickReasons_${props.userId}`
+      const keyPotentialNeeds = `llmPotentialNeeds_${props.userId}`
+      
+      if (llmProfileSummary.value) localStorage.setItem(keySummary, llmProfileSummary.value)
+      if (llmClickReasons.value.length) localStorage.setItem(keyClickReasons, JSON.stringify(llmClickReasons.value))
+      if (llmPotentialNeeds.value.length) localStorage.setItem(keyPotentialNeeds, JSON.stringify(llmPotentialNeeds.value))
     }
     
     // 已删除的标签列表（会话期间）
@@ -494,18 +519,20 @@ export default {
     const profileSummary = computed(() => props.profileSummary)
     const profileUpdateNotice = computed(() => props.profileUpdateNotice)
     
-    // 生成LLM画像
+    // 生成LLM画像 - 增强版
     async function generateLLMProfile() {
       if (!props.userId || llmProfileLoading.value) return
       llmProfileLoading.value = true
       try {
-        const res = await api.getLLMProfile(props.userId)
-        llmProfile.value = res.data.llm_profile
+        const res = await api.getEnhancedLLMProfile(props.userId)
+        llmProfileSummary.value = res.data.summary || ''
+        llmClickReasons.value = res.data.click_reasons || []
+        llmPotentialNeeds.value = res.data.potential_needs || []
         // 保存到localStorage
         saveLLMProfile()
       } catch (err) {
         console.error('生成LLM画像失败:', err)
-        llmProfile.value = '生成失败，请稍后重试'
+        llmProfileSummary.value = '生成失败，请稍后重试'
       } finally {
         llmProfileLoading.value = false
       }
@@ -523,6 +550,9 @@ export default {
       profileSummary,
       profileUpdateNotice,
       llmProfile,
+      llmProfileSummary,
+      llmClickReasons,
+      llmPotentialNeeds,
       llmProfileLoading,
       generateLLMProfile
     }
@@ -1013,6 +1043,58 @@ export default {
   font-size: 14px;
   line-height: 1.6;
   color: #374151;
+}
+
+/* 增强版画像样式 */
+.llm-profile-enhanced {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.llm-profile-item {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.llm-item-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.llm-item-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+}
+
+.llm-reason-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.llm-reason-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.llm-reason-list li:last-child {
+  margin-bottom: 0;
+}
+
+.reason-icon {
+  flex-shrink: 0;
+  font-size: 14px;
 }
 
 .btn-regenerate {
