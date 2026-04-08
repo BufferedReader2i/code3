@@ -288,7 +288,7 @@ ask to be able to use it for predictions and inference.  [Epoch 1] step 50/1286 
   [Epoch 10] step 1200/1286  loss=0.0058
   [Epoch 10] step 1250/1286  loss=0.0495
 ✓ Epoch 10/10 | loss=0.0359 | acc=79.32% | macro-F1=75.
-71%                                                    早停：macro-F1 连续 3 轮未提升，训练结束。
+71%                                                    
 
 训练结束，最佳 macro-F1: 75.98%，模型保存至 distilbert_
 news.pth                                               
