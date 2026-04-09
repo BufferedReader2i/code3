@@ -10,7 +10,6 @@
         <h1 class="detail-title">{{ news.title }}</h1>
         <p v-if="news.abstract" class="detail-abstract">{{ news.abstract }}</p>
         <pre v-if="news.body" class="detail-body">{{ news.body }}</pre>
-        <p v-else class="detail-no-body">暂无正文 (body: {{ news.body }})</p>
         
         <div class="detail-actions">
           <button
@@ -177,12 +176,6 @@ export default {
   color: #000;
   line-height: 1.6;
   white-space: pre-wrap;
-  margin-bottom: 20px;
-}
-
-.detail-no-body {
-  font-size: 0.875rem;
-  color: #999;
   margin-bottom: 20px;
 }
 

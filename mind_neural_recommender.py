@@ -289,7 +289,7 @@ class MindRecommenderSystem:
 
     def load_entity_embeddings(self, path=ENTITY_EMBED_FILE):
         self.entity_embeds = load_entity_embeddings(path)
-        print(f"加载实体向量: {len(self.entity_embeds)} 个")
+        
 
     def load_news(self, path=NEWS_FILE):
         self.news_data, self.vocab = load_news(path, self.entity_embeds)

@@ -31,11 +31,11 @@ MODEL_NAME      = 'distilbert-base-uncased'
 MAX_LEN         = 128
 BATCH_SIZE      = 32
 EPOCHS          = 10
-LR_BERT         = 2e-5   # DistilBERT 层学习率
-LR_HEAD         = 1e-4   # 分类头学习率
-WARMUP_RATIO    = 0.1    # 前 10% step 做 warmup
-OVERSAMPLE_MIN  = 50     # 少于此条数的类别过采样到此数量
-EARLY_STOP      = 3      # 宏 F1 连续不提升轮数
+LR_BERT         = 2e-5   
+LR_HEAD         = 1e-4  
+WARMUP_RATIO    = 0.1    
+OVERSAMPLE_MIN  = 50     
+EARLY_STOP      = 3      
 SEED            = 42
 
 # ---------- 固定随机种子 ----------

@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-推荐服务：仅做推理。模型在外用 mind_neural_recommender.py 训练并保存，此处只加载 checkpoint + 从 MySQL 读数据。
-"""
 
 import os
 import json
@@ -14,13 +11,13 @@ from collections import Counter, defaultdict
 
 from backend.db import get_connection
 
-# 模型与资源路径（训练在项目根目录单独跑）
+
 DATA_DIR = os.environ.get("MIND_DATA_DIR", "datal")
 ENTITY_VEC = os.path.join(DATA_DIR, "entity_embedding.vec")
 REC_CKPT = "mind_recommender.pt"
 REC_OLD_CKPT = "recommender_model.pth"
 USE_MIND = os.path.isfile(REC_CKPT)
-MAX_HISTORY = 50  # 与 mind 模型一致，用于后端合并历史
+MAX_HISTORY = 50  
 
 if USE_MIND:
     from mind_neural_recommender import MindRecommenderSystem
@@ -83,7 +80,7 @@ class RecommendationService:
             self._build_global_dist()
 
     def _build_category_index(self):
-        """按类别建索引，便于按用户兴趣拉取候选（保证 autos 等兴趣类能进候选集）。"""
+        """按类别建索引，便于按用户兴趣拉取候选。"""
         self._category_to_ids = defaultdict(list)
         for nid in self.news_list:
             if nid not in self.rec.news_data:
@@ -780,18 +777,46 @@ class RecommendationService:
             if USE_MIND:
                 self._persist_click_to_db(user_id, news_id)
             saved = self._persist_event_to_db(user_id, news_id, "click", ts_ms=ts, dwell_ms=dwell_ms, extra=extra)
-            # 用户产生新行为后更新画像（强制重新计算并存入数据库）
-            self.get_user_profile(user_id, use_db=True)
+            # 用户产生新行为后更新画像：强制重新计算并同步保存到数据库
+            self._update_user_profile_sync(user_id)
             return saved
         if event_type in ("like", "unlike", "dislike", "undislike", "not_interested", "remove_not_interested", "favorite", "unfavorite", "dwell"):
             saved = self._persist_event_to_db(user_id, news_id, event_type, ts_ms=ts, dwell_ms=dwell_ms, extra=extra)
-            # 用户产生新行为后更新画像（强制重新计算并存入数据库）
-            self.get_user_profile(user_id, use_db=True)
+            # 用户产生新行为后更新画像：强制重新计算并同步保存到数据库
+            self._update_user_profile_sync(user_id)
             return saved
         saved = self._persist_event_to_db(user_id, news_id, str(event_type), ts_ms=ts, dwell_ms=dwell_ms, extra=extra)
-        # 用户产生新行为后更新画像（强制重新计算并存入数据库）
-        self.get_user_profile(user_id, use_db=True)
+        # 用户产生新行为后更新画像：强制重新计算并同步保存到数据库
+        self._update_user_profile_sync(user_id)
         return saved
+    
+    def _update_user_profile_sync(self, user_id):
+        """同步更新用户画像到数据库：强制重新计算并立即保存"""
+        new_profile = self.get_user_profile(user_id, use_db=False)
+        # 同步保存到数据库
+        conn = get_connection()
+        if not conn:
+            return
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO user_profile (user_id, categories_json, subcategories_json, history_count)
+                    VALUES (%s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        categories_json = VALUES(categories_json),
+                        subcategories_json = VALUES(subcategories_json),
+                        history_count = VALUES(history_count)
+                """, (
+                    user_id,
+                    json.dumps(new_profile["categories"], ensure_ascii=False),
+                    json.dumps(new_profile["subcategories"], ensure_ascii=False),
+                    new_profile["history_count"]
+                ))
+            conn.commit()
+        except Exception:
+            pass
+        finally:
+            conn.close()
 
     def click_news(self, user_id, news_id):
         # click 事件：通过 record_event 统一处理持久化
@@ -1096,6 +1121,8 @@ class RecommendationService:
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM news WHERE news_id=%s", (news_id,))
                 cur.execute("DELETE FROM news_status WHERE news_id=%s", (news_id,))
+                # 删除用户行为记录，避免热门新闻统计中显示已删除的新闻
+                cur.execute("DELETE FROM user_events WHERE news_id=%s", (news_id,))
             conn.commit()
             if news_id in self.news_info:
                 del self.news_info[news_id]
